@@ -5,41 +5,39 @@ import hashlib
 from datetime import datetime, date, timedelta
 import uuid
 import re
+import altair as alt
 
 # ----------------- PAGE SETUP & THEME -----------------
 st.set_page_config(
-    page_title="LuxeSalon OS | Studio Management",
+    page_title="LuxeSalon OS | Studio & Parlour Management",
     page_icon="✂️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Fresh, Bright, High-Contrast Professional Salon Styling
+# Fresh, Bright Professional Salon Styling
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', sans-serif;
     }
     
-    /* Clean, bright luxury background */
     .stApp {
         background: linear-gradient(135deg, #F8F9FB 0%, #F3F4F8 50%, #FAF7F2 100%);
         color: #1E293B;
     }
     
-    /* Global text clarity */
     h1, h2, h3, h4, h5, p, label, span {
         color: #1E293B !important;
     }
     
-    /* Prominent, readable Metric Cards */
     div[data-testid="stMetric"] {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
         border-top: 4px solid #D4A338;
-        padding: 18px 22px;
+        padding: 16px 20px;
         border-radius: 12px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
     }
@@ -54,16 +52,14 @@ st.markdown("""
         font-size: 1.85rem;
     }
 
-    /* ALL PRIMARY BUTTONS: Crisp, High-Contrast Gold */
     div.stButton > button {
         background: linear-gradient(135deg, #E6B447 0%, #D4A338 100%) !important;
         color: #111827 !important;
         font-weight: 700 !important;
-        font-size: 0.95rem !important;
-        letter-spacing: 0.3px;
+        font-size: 0.92rem !important;
         border: 1px solid #C49329 !important;
         border-radius: 8px !important;
-        padding: 0.55rem 1.25rem !important;
+        padding: 0.5rem 1.1rem !important;
         box-shadow: 0 2px 6px rgba(212, 163, 56, 0.3) !important;
         transition: all 0.2s ease-in-out;
     }
@@ -74,34 +70,44 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* Secondary/Action Log-Off button */
-    button[key*="logout"] {
+    button[key*="logout"], button[key*="del_"], button[key*="rej_"] {
         background: #FEE2E2 !important;
         color: #991B1B !important;
         border: 1px solid #FCA5A5 !important;
     }
-    button[key*="logout"]:hover {
+    button[key*="logout"]:hover, button[key*="del_"]:hover, button[key*="rej_"]:hover {
         background: #FECACA !important;
         color: #7F1D1D !important;
     }
 
-    /* High-contrast forms & inputs */
+    .user-profile-header {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-left: 6px solid #D4A338;
+        border-radius: 12px;
+        padding: 14px 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+
+    .pricing-card {
+        background: #FFFFFF;
+        border: 2px solid #D4A338;
+        border-radius: 14px;
+        padding: 22px;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(212, 163, 56, 0.12);
+        margin-bottom: 18px;
+    }
+
     [data-testid="stForm"] {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
         border-radius: 14px;
-        padding: 28px;
+        padding: 24px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
     }
-    
-    input, select, textarea {
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 6px !important;
-    }
 
-    /* Lookbook Styling */
     .haircut-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -109,10 +115,6 @@ st.markdown("""
         overflow: hidden;
         box-shadow: 0 4px 14px rgba(0,0,0,0.06);
         margin-bottom: 20px;
-        transition: transform 0.2s ease;
-    }
-    .haircut-card:hover {
-        transform: translateY(-4px);
     }
     .haircut-card img {
         width: 100%;
@@ -123,7 +125,15 @@ st.markdown("""
         padding: 16px;
     }
 
-    /* Footer Branding */
+    .performer-card {
+        background: linear-gradient(135deg, #FFFFFF 0%, #FFFDF7 100%);
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+    }
+
     .brand-footer {
         text-align: center;
         padding: 24px 0 10px 0;
@@ -140,7 +150,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------- DB CONNECTION -----------------
+# ----------------- DB SETUP -----------------
 @st.cache_resource
 def init_supabase() -> Client:
     raw_url = st.secrets["supabase"]["url"].strip()
@@ -154,7 +164,6 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 def clean_phone_number(phone_raw: str) -> str:
-    """Extracts only digits and returns 10-digit number if valid."""
     digits = re.sub(r"\D", "", phone_raw)
     if len(digits) == 12 and digits.startswith("91"):
         digits = digits[2:]
@@ -162,34 +171,683 @@ def clean_phone_number(phone_raw: str) -> str:
         digits = digits[1:]
     return digits
 
+# ----------------- MULTI-LANGUAGE TRANSLATIONS (EN / HI / MR) -----------------
+TRANSLATIONS = {
+    "English": {
+        "welcome_title": "Welcome to LuxeSalon OS",
+        "welcome_subtitle": "Smart Salon & Beauty Parlour Suite",
+        "portal_signin": "Portal Sign In",
+        "select_salon_type": "Select Parlour / Salon Type",
+        "username": "Username",
+        "password": "Password",
+        "btn_signin": "Sign In to Salon OS",
+        "btn_request_access": "✨ Request New Salon Access / Get Started",
+        "log_off": "Log Off",
+        "nav_pos": "Billing POS",
+        "nav_pnl": "Total PnL (Earnings & Exp)",
+        "nav_expenses": "Expenses",
+        "nav_config": "Store Config",
+        "nav_lookbook": "Style Lookbook",
+        "nav_admin_txns": "Live Transactions",
+        "nav_admin_salons": "Manage Salons & Parlours",
+        "metric_today_cust": "Today's Customers",
+        "metric_today_sales": "Today's Total Sales",
+        "metric_month_sales": "Current Month Sales",
+        "trend_7days": "Past 7 Days Earnings Trend",
+        "emp_recognition": "Employee Sales & Recognition",
+        "btn_reveal_top3": "Reveal Top 3 Performers & Celebrate",
+        "quick_pos": "Quick POS Entry",
+        "staff_stylist": "Staff / Stylist",
+        "cust_name_mobile": "Customer Name / Mobile *",
+        "services_rendered": "Services Rendered (Multi-Service)",
+        "total_bill": "Total Bill (₹)",
+        "payment_mode": "Payment Mode",
+        "btn_save_sale": "Record Sale",
+        "today_entries": "Today's Entries",
+        "no_bills_today": "No bills entered today yet.",
+        "pnl_title": "All-in-One: Total Earnings & Expenses",
+        "total_rev": "Total Revenue (Earnings)",
+        "total_exp": "Total Expenses Incurred",
+        "net_profit": "Net In-Pocket Profit",
+        "rev_by_mode": "Revenue by Payment Mode",
+        "exp_by_cat": "Expenses by Category",
+        "expenses_title": "Store Expenses & Purchases",
+        "log_expense": "Log Expense",
+        "exp_cat": "Category",
+        "exp_desc": "Description / Notes",
+        "exp_amount": "Amount (₹)",
+        "exp_date": "Date",
+        "btn_save_exp": "Save Expense",
+        "exp_history": "Expense Records & Deletion",
+        "store_config_title": "Store Configuration",
+        "tab_services": "Services & Rates",
+        "tab_employees": "Employees / Staff",
+        "add_new_service": "Add New Service",
+        "service_name": "Service Name",
+        "standard_rate": "Standard Rate (₹)",
+        "btn_save_service": "Save New Service Rate",
+        "add_new_staff": "Add New Staff Stylist",
+        "staff_full_name": "Stylist Full Name *",
+        "staff_username": "Staff Login Username *",
+        "staff_password": "Staff Login Password *",
+        "btn_save_staff": "Submit Staff Account",
+        "admin_txns_title": "Central Transactions Stream",
+        "admin_txns_sub": "Live stream of customer billings across all registered salons and parlours.",
+        "admin_salons_title": "Salons & Parlours Directory",
+        "onboard_salon": "Onboard New Salon / Parlour",
+        "btn_edit_info": "Edit Information",
+        "btn_extend_30": "Extend 30 Days",
+        "btn_delete_salon": "Delete Salon",
+        "btn_save_changes": "Save Updated Information",
+        "btn_cancel": "Cancel / Back",
+        "lookbook_title": "Trending Hairstyles & Lookbook Catalog",
+        "tab_men": "Men's Modern Haircuts & Grooming",
+        "tab_women": "Women's Beauty & Hair Makeover",
+        "celebration_modal_title": "Top 3 Star Performers Recognition",
+        "celebration_sub": "Recognizing dedication, customer love, and outstanding sales performance.",
+        "champ_1st": "1st Place Champion",
+        "star_2nd": "2nd Place Star",
+        "achiever_3rd": "3rd Place Achiever",
+        "sales_delivered": "Total Sales Delivered",
+        "clients_attended": "Clients Attended",
+        "btn_close": "Close Window"
+    },
+    "हिन्दी (Hindi)": {
+        "welcome_title": "लक्स सैलून ओएस में आपका स्वागत है",
+        "welcome_subtitle": "स्मार्ट सैलून एवं ब्यूटी पार्लर प्रबंधन सॉफ्टवेयर",
+        "portal_signin": "पोर्टल लॉगिन",
+        "select_salon_type": "सैलून / पार्लर का प्रकार चुनें",
+        "username": "यूज़रनेम (Username)",
+        "password": "पासवर्ड (Password)",
+        "btn_signin": "सैलून ओएस में लॉगिन करें",
+        "btn_request_access": "✨ नए सैलून एक्सेस हेतु आवेदन करें",
+        "log_off": "लॉग आउट करें",
+        "nav_pos": "बिलिंग / नया बिल (POS)",
+        "nav_pnl": "कुल लाभ व हानि (PnL)",
+        "nav_expenses": "दुकान के खर्चे",
+        "nav_config": "दुकान सेटिंग",
+        "nav_lookbook": "स्टाइल लुकबुक",
+        "nav_admin_txns": "लाइव बिलिंग लेनदेन",
+        "nav_admin_salons": "सैलून और पार्लर प्रबंधन",
+        "metric_today_cust": "आज के कुल ग्राहक",
+        "metric_today_sales": "आज की कुल बिक्री",
+        "metric_month_sales": "इस महीने की बिक्री",
+        "trend_7days": "पिछले 7 दिनों की कमाई का रुझान",
+        "emp_recognition": "कर्मचारी बिक्री और सम्मान",
+        "btn_reveal_top3": "🏆 टॉप 3 कर्मचारी देखें व सम्मानित करें",
+        "quick_pos": "⚡ त्वरित ग्राहक बिलिंग",
+        "staff_stylist": "स्टाफ / कारीगर चुनें",
+        "cust_name_mobile": "ग्राहक का नाम / मोबाइल नंबर *",
+        "services_rendered": "दी गई सेवाएं (Multi-Service चुनें)",
+        "total_bill": "कुल बिल राशि (₹)",
+        "payment_mode": "भुगतान माध्यम (Payment Mode)",
+        "btn_save_sale": "💾 बिल सेव करें",
+        "today_entries": "आज के बिल की सूची",
+        "no_bills_today": "आज अभी तक कोई बिल दर्ज नहीं हुआ है।",
+        "pnl_title": "कुल कमाई और खर्चे (लाभ व हानि विवरण)",
+        "total_rev": "कुल कमाई (Revenue)",
+        "total_exp": "कुल खर्चे (Expenses)",
+        "net_profit": "शुद्ध बचत / लाभ (Net Profit)",
+        "rev_by_mode": "भुगतान माध्यम अनुसार कमाई",
+        "exp_by_cat": "श्रेणी अनुसार खर्चे",
+        "expenses_title": "दुकान के खर्चे और खरीदारी",
+        "log_expense": "नया खर्चा दर्ज करें",
+        "exp_cat": "खर्चे की श्रेणी",
+        "exp_desc": "विवरण / सामान का नाम",
+        "exp_amount": "राशि (₹)",
+        "exp_date": "तारीख",
+        "btn_save_exp": "खर्चा सेव करें",
+        "exp_history": "खर्चों का रिकॉर्ड एवं हटाना",
+        "store_config_title": "सैलून एवं स्टाफ सेटिंग्स",
+        "tab_services": "सर्विस और रेट लिस्ट",
+        "tab_employees": "स्टाफ / कर्मचारी",
+        "add_new_service": "नई सर्विस जोड़ें",
+        "service_name": "सर्विस का नाम",
+        "standard_rate": "दर / रेट (₹)",
+        "btn_save_service": "नई सर्विस रेट सेव करें",
+        "add_new_staff": "नया स्टाफ सदस्य जोड़ें",
+        "staff_full_name": "स्टाफ का पूरा नाम *",
+        "staff_username": "लॉगिन यूज़रनेम *",
+        "staff_password": "लॉगिन पासवर्ड *",
+        "btn_save_staff": "स्टाफ खाता विवरण सबमिट करें",
+        "admin_txns_title": "केंद्रीय लेनदेन नियंत्रण",
+        "admin_txns_sub": "सभी सैलून और पार्लरों की लाइव बिलिंग।",
+        "admin_salons_title": "सैलून और ब्यूटी पार्लर डायरेक्टरी",
+        "onboard_salon": "नया सैलून / पार्लर जोड़ें",
+        "btn_edit_info": "जानकारी बदलें (Edit)",
+        "btn_extend_30": "30 दिन वैधता बढ़ाएं",
+        "btn_delete_salon": "सैलून हटाएं (Delete)",
+        "btn_save_changes": "बदलाव सेव करें",
+        "btn_cancel": "रद्द करें / वापस",
+        "lookbook_title": "ट्रेंडिंग हेयरस्टाइल और लुकबुक",
+        "tab_men": "पुरुषों के हेयरकट और ग्रूमिंग",
+        "tab_women": "महिलाओं की हेयर व ब्यूटी स्टाइल",
+        "celebration_modal_title": "सर्वश्रेष्ठ 3 कर्मचारियों का अभिनंदन",
+        "celebration_sub": "मेहनत, बेहतरीन ग्राहक सेवा और शानदार बिक्री का सम्मान।",
+        "champ_1st": "🥇 प्रथम स्थान विजेता",
+        "star_2nd": "🥈 द्वितीय स्थान सितारा",
+        "achiever_3rd": "🥉 तृतीय स्थान अचीवर",
+        "sales_delivered": "कुल दर्ज बिक्री",
+        "clients_attended": "अटेंड किए गए ग्राहक",
+        "btn_close": "विंडो बंद करें"
+    },
+    "मराठी (Marathi)": {
+        "welcome_title": "लक्स सलून ओएस मध्ये आपले स्वागत आहे",
+        "welcome_subtitle": "स्मार्ट सलून आणि ब्युटी पार्लर व्यवस्थापन प्रणाली",
+        "portal_signin": "पोर्टल लॉगिन",
+        "select_salon_type": "सलून / पार्लरचा प्रकार निवडा",
+        "username": "वापरकर्ता नाव (Username)",
+        "password": "पासवर्ड (Password)",
+        "btn_signin": "सलून ओएस मध्ये लॉगिन करा",
+        "btn_request_access": "✨ नवीन सलून ॲक्सेससाठी अर्ज करा",
+        "log_off": "लॉग आउट करा",
+        "nav_pos": "बिलिंग / नवीन बिल (POS)",
+        "nav_pnl": "एकूण नफा आणि तोटा (PnL)",
+        "nav_expenses": "दुकानाचे खर्च",
+        "nav_config": "दुकान सेटिंग्ज",
+        "nav_lookbook": "स्टाईल लुकबुक",
+        "nav_admin_txns": "थेट व्यवहार प्रवाह",
+        "nav_admin_salons": "सलून व पार्लर व्यवस्थापन",
+        "metric_today_cust": "आजचे एकूण ग्राहक",
+        "metric_today_sales": "आजची एकूण विक्री",
+        "metric_month_sales": "या महिन्याची विक्री",
+        "trend_7days": "मागील ७ दिवसांचा कमाईचा आलेख",
+        "emp_recognition": "कर्मचारी कामगिरी आणि सन्मान",
+        "btn_reveal_top3": "🏆 सर्वोत्तम ३ कर्मचारी पहा व सन्मान करा",
+        "quick_pos": "⚡ जलद बिलिंग नोंद",
+        "staff_stylist": "स्टाफ / कारागीर निवडा",
+        "cust_name_mobile": "ग्राहकाचे नाव / मोबाईल नंबर *",
+        "services_rendered": "दिलेल्या सेवा (एकाधिक सेवा निवडा)",
+        "total_bill": "एकूण बिल रक्कम (₹)",
+        "payment_mode": "पेमेंट मोड (Payment Mode)",
+        "btn_save_sale": "💾 बिल जतन करा",
+        "today_entries": "आजच्या बिलांची यादी",
+        "no_bills_today": "आज अजून एकही बिल नोंदवलेले नाही.",
+        "pnl_title": "एकूण कमाई आणि खर्च (नफा-तोटा विवरण)",
+        "total_rev": "एकूण उत्पन्न (Revenue)",
+        "total_exp": "एकूण झालेले खर्च (Expenses)",
+        "net_profit": "निव्वळ शिल्लक नफा (Net Profit)",
+        "rev_by_mode": "पेमेंट पद्धतीनुसार कमाई",
+        "exp_by_cat": "प्रकारानुसार झालेले खर्च",
+        "expenses_title": "दुकानाचे खर्च व खरेदी",
+        "log_expense": "नवीन खर्च नोंदवा",
+        "exp_cat": "खर्चाचा प्रकार",
+        "exp_desc": "तपशील / साहित्याचे नाव",
+        "exp_amount": "रक्कम (₹)",
+        "exp_date": "तारीख",
+        "btn_save_exp": "खर्च जतन करा",
+        "exp_history": "खर्चाची नोंद व डिलीट पर्याय",
+        "store_config_title": "सलून आणि स्टाफ रचना",
+        "tab_services": "सेवा आणि दरपत्रक",
+        "tab_employees": "कर्मचारी वर्ग",
+        "add_new_service": "नवीन सेवा जोडा",
+        "service_name": "सेवेचे नाव",
+        "standard_rate": "दर / किंमत (₹)",
+        "btn_save_service": "नवीन सेवा दर जतन करा",
+        "add_new_staff": "नवीन कर्मचारी जोडा",
+        "staff_full_name": "कर्मचाऱ्याचे पूर्ण नाव *",
+        "staff_username": "लॉगिन नाव (Username) *",
+        "staff_password": "लॉगिन पासवर्ड *",
+        "btn_save_staff": "कर्मचारी खाते सबमिट करा",
+        "admin_txns_title": "केंद्रीय बिलिंग व्यवहार नियंत्रण",
+        "admin_txns_sub": "सर्व सलून आणि पार्लर्सचे थेट बिलिंग.",
+        "admin_salons_title": "सलून आणि ब्युटी पार्लर यादी",
+        "onboard_salon": "नवीन सलून / पार्लर नोंदणी",
+        "btn_edit_info": "माहिती बदला (Edit)",
+        "btn_extend_30": "३० दिवस मुदत वाढवा",
+        "btn_delete_salon": "सलून हटवा (Delete)",
+        "btn_save_changes": "बदल जतन करा",
+        "btn_cancel": "रद्द करा / मागे जा",
+        "lookbook_title": "ट्रेंडिंग हेअरकट आणि ब्युटी कॅटलॉग",
+        "tab_men": "पुरुषांचे हेअरकट्स व ग्रूमिंग",
+        "tab_women": "महिलांच्या हेअर आणि ब्युटी स्टाईल्स",
+        "celebration_modal_title": "सर्वोत्कृष्ट ३ कर्मचाऱ्यांचा गौरव",
+        "celebration_sub": "कष्ट, ग्राहकांचे समाधान आणि अप्रतिम विक्री कामगिरीचा गौरव.",
+        "champ_1st": "🥇 प्रथम क्रमांक विजेता",
+        "star_2nd": "🥈 द्वितीय क्रमांक स्टार",
+        "achiever_3rd": "🥉 तृतीय क्रमांक अचिव्हर",
+        "sales_delivered": "दिलेली एकूण विक्री",
+        "clients_attended": "सेवा दिलेले ग्राहक",
+        "btn_close": "खिडकी बंद करा"
+    }
+}
+
 # ----------------- SESSION STATE -----------------
+if "lang" not in st.session_state:
+    st.session_state.lang = "English"
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user = None
+if "store_info" not in st.session_state:
+    st.session_state.store_info = None
 if "current_page" not in st.session_state:
     st.session_state.current_page = "home"
+if "admin_editing_store_id" not in st.session_state:
+    st.session_state.admin_editing_store_id = None
+if "show_request_form" not in st.session_state:
+    st.session_state.show_request_form = False
+if "req_view_filter" not in st.session_state:
+    st.session_state.req_view_filter = "pending"
 
-# ----------------- WELCOMING LOGIN SCREEN -----------------
-def login_screen():
-    c_pad1, col_login, c_pad2 = st.columns([1, 1.4, 1])
-    with col_login:
-        st.markdown("<div style='text-align: center; margin-top: 30px;'>", unsafe_allow_html=True)
-        st.markdown("<span style='font-size: 3rem;'>✨ ✂️ ✨</span>", unsafe_allow_html=True)
-        st.markdown("<h1 style='color: #0F172A; font-size: 2.2rem; margin-bottom: 4px;'>Welcome to LuxeSalon OS</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #64748B; font-size: 1.02rem; margin-bottom: 22px;'>Smart Salon Management & Point-of-Sale Suite</p>", unsafe_allow_html=True)
+# Quick accessor for active language
+T = TRANSLATIONS[st.session_state.lang]
+
+# ----------------- TOP GLOBAL LANGUAGE SELECTOR -----------------
+def render_language_bar():
+    c_space, c_lang = st.columns([5.5, 2.5])
+    with c_lang:
+        lang_choice = st.selectbox(
+            "🌐 भाषा / Language",
+            options=["English", "हिन्दी (Hindi)", "मराठी (Marathi)"],
+            index=["English", "हिन्दी (Hindi)", "मराठी (Marathi)"].index(st.session_state.lang),
+            key="lang_select_box"
+        )
+        if lang_choice != st.session_state.lang:
+            st.session_state.lang = lang_choice
+            st.rerun()
+
+# ----------------- MODAL DIALOG: ACCEPT & PROVISION REQUEST -----------------
+@st.dialog("✅ Provision & Activate Client Salon")
+def accept_request_modal(req):
+    st.markdown(f"### Activating: **{req['shop_name']}**")
+    st.markdown(f"**Owner:** {req['owner_name']} | **Phone:** +91 {req['owner_phone']}")
+    st.caption("Review credentials and plan validity below to create their live login:")
+
+    with st.form(f"provision_req_form_{req['request_id']}"):
+        col_u, col_p = st.columns(2)
+        with col_u:
+            prov_user = st.text_input("Owner Login Username *", value=req.get("preferred_username", req['shop_name'].lower().replace(" ", "_"))).strip()
+        with col_p:
+            prov_pass = st.text_input("Initial Secret Password *", value="Salon@1234")
+
+        plan_sel = st.selectbox("Assign Subscription Plan", [
+            "Basic - ₹300 / Month",
+            "Quarterly - 90 Days",
+            "Annual - 365 Days",
+            "Free Trial - 30 Days"
+        ], index=0)
+
+        c_submit, c_cancel = st.columns(2)
+        with c_submit:
+            confirm_btn = st.form_submit_button("🚀 Activate & Create Salon", use_container_width=True)
+        with c_cancel:
+            cancel_btn = st.form_submit_button("Cancel", use_container_width=True)
+
+    if cancel_btn:
+        st.rerun()
+
+    if confirm_btn:
+        if not prov_user or not prov_pass:
+            st.error("Please provide both username and password.")
+        else:
+            chk = supabase.table("users").select("username").eq("username", prov_user).execute().data
+            if chk:
+                st.error(f"Username '{prov_user}' is already taken.")
+            else:
+                try:
+                    new_store_id = f"STORE-{uuid.uuid4().hex[:6].upper()}"
+                    new_user_id = f"U{uuid.uuid4().hex[:5].upper()}"
+                    days = 30 if ("30" in plan_sel or "300" in plan_sel) else (90 if "90" in plan_sel else 365)
+                    tstart = date.today()
+                    tend = tstart + timedelta(days=days)
+
+                    # 1. Insert store
+                    supabase.table("stores").insert({
+                        "store_id": new_store_id,
+                        "store_name": req["shop_name"],
+                        "salon_type": req["salon_type"],
+                        "owner_name": req["owner_name"],
+                        "owner_phone": req["owner_phone"],
+                        "trial_start": tstart.isoformat(),
+                        "trial_end": tend.isoformat(),
+                        "status": "active",
+                        "plan_name": plan_sel
+                    }).execute()
+
+                    # 2. Insert owner user
+                    supabase.table("users").insert({
+                        "user_id": new_user_id,
+                        "username": prov_user,
+                        "password_hash": hash_password(prov_pass),
+                        "role": "client",
+                        "store_id": new_store_id,
+                        "name": req["owner_name"],
+                        "status": "active"
+                    }).execute()
+
+                    # 3. Seed starter rate cards
+                    if "Women" in req["salon_type"]:
+                        starter = [
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Haircut & Blowdry", "price": 400},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Fruit / Gold Facial", "price": 850},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Full Arms Waxing", "price": 300},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Threading & Eyebrows", "price": 80}
+                        ]
+                    elif "Men" in req["salon_type"]:
+                        starter = [
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Haircut & Styling", "price": 200},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Beard Grooming & Shape", "price": 120},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Facial Clean-up", "price": 500},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Head Massage & Wash", "price": 250}
+                        ]
+                    else:
+                        starter = [
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Men Haircut & Style", "price": 200},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Women Haircut & Blowdry", "price": 450},
+                            {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Facial & Glow Treatment", "price": 800}
+                        ]
+                    supabase.table("services").insert(starter).execute()
+
+                    # 4. Mark request status as accepted
+                    supabase.table("access_requests").update({"status": "accepted"}).eq("request_id", req["request_id"]).execute()
+
+                    st.success(f"🎉 Salon '{req['shop_name']}' successfully activated! Credentials: {prov_user} / {prov_pass}")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to activate salon: {e}")
+
+# ----------------- MODAL DIALOG: CONFIRM NEW SALON DIRECT ONBOARDING -----------------
+@st.dialog("📋 Confirm New Salon Registration")
+def confirm_new_salon_modal(p):
+    st.markdown("### Please verify the salon account details:")
+    summary = {
+        "Salon / Shop Name": p["salon_name"],
+        "Category": p["salon_type"],
+        "Owner Full Name": p["owner_name"],
+        "10-Digit Mobile": f"+91 {p['owner_phone']}",
+        "Owner Username": p["username"],
+        "Initial Password": "•" * len(p["password"]),
+        "Plan Option": p["plan_opt"],
+        "Validity Ends": str(p["trial_end"])
+    }
+    st.dataframe(pd.DataFrame(list(summary.items()), columns=["Field", "Details"]), use_container_width=True, hide_index=True)
+    st.write("---")
+    
+    c_yes, c_no = st.columns(2)
+    with c_yes:
+        if st.button("✅ Confirm & Create Salon", type="primary", use_container_width=True):
+            try:
+                supabase.table("stores").insert({
+                    "store_id": p["store_id"],
+                    "store_name": p["salon_name"],
+                    "salon_type": p["salon_type"],
+                    "owner_name": p["owner_name"],
+                    "owner_phone": p["owner_phone"],
+                    "trial_start": p["trial_start"].isoformat(),
+                    "trial_end": p["trial_end"].isoformat(),
+                    "status": "active",
+                    "plan_name": p["plan_opt"]
+                }).execute()
+
+                supabase.table("users").insert({
+                    "user_id": p["user_id"],
+                    "username": p["username"],
+                    "password_hash": hash_password(p["password"]),
+                    "role": "client",
+                    "store_id": p["store_id"],
+                    "name": p["owner_name"],
+                    "status": "active"
+                }).execute()
+
+                if "Women" in p["salon_type"]:
+                    starter = [
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Haircut & Blowdry", "price": 400},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Fruit / Gold Facial", "price": 850},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Full Arms Waxing", "price": 300},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Threading & Eyebrows", "price": 80}
+                    ]
+                elif "Men" in p["salon_type"]:
+                    starter = [
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Haircut & Styling", "price": 200},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Beard Grooming & Shape", "price": 120},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Facial Clean-up", "price": 500},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Head Massage & Wash", "price": 250}
+                    ]
+                else:
+                    starter = [
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Men Haircut & Style", "price": 200},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Women Haircut & Blowdry", "price": 450},
+                        {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": p["store_id"], "service_name": "Facial & Glow Treatment", "price": 800}
+                    ]
+                supabase.table("services").insert(starter).execute()
+
+                st.success(f"🎉 Salon '{p['salon_name']}' created successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error creating salon: {e}")
+
+    with c_no:
+        if st.button("❌ Cancel / Edit", use_container_width=True):
+            st.rerun()
+
+# ----------------- MODAL DIALOG: CONFIRM NEW STAFF CREATION -----------------
+@st.dialog("👤 Confirm New Staff Account")
+def confirm_new_staff_modal(p):
+    st.markdown("### Please review the staff member details:")
+    summary = {
+        "Staff Full Name": p["name"],
+        "Staff Login Username": p["username"],
+        "Role": "Stylist / Staff Worker",
+        "Status": "Active"
+    }
+    st.dataframe(pd.DataFrame(list(summary.items()), columns=["Field", "Details"]), use_container_width=True, hide_index=True)
+    st.write("---")
+
+    c_yes, c_no = st.columns(2)
+    with c_yes:
+        if st.button("✅ Confirm & Create Staff", type="primary", use_container_width=True):
+            try:
+                supabase.table("users").insert({
+                    "user_id": p["user_id"],
+                    "username": p["username"],
+                    "password_hash": hash_password(p["password"]),
+                    "role": "worker",
+                    "store_id": p["store_id"],
+                    "name": p["name"],
+                    "status": "active"
+                }).execute()
+                st.success(f"🎉 Staff account created for {p['name']}!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to create staff account: {e}")
+
+    with c_no:
+        if st.button("❌ Cancel", use_container_width=True):
+            st.rerun()
+
+# ----------------- MODAL DIALOG: TOP 3 PERFORMERS CELEBRATION -----------------
+@st.dialog(f"💐 🏆 {T['celebration_modal_title']} 🏆 💐")
+def show_top_performers_modal(txns_df):
+    st.balloons()
+    
+    if txns_df.empty:
+        st.info("No transaction data available yet.")
+        return
+
+    emp_rank = txns_df.groupby("worker_name").agg(
+        Total_Sales=("amount", "sum"),
+        Clients_Served=("customer_name", "count")
+    ).reset_index().sort_values(by="Total_Sales", ascending=False)
+
+    top_3 = emp_rank.head(3)
+
+    medals = [T["champ_1st"], T["star_2nd"], T["achiever_3rd"]]
+    flower_garlands = ["🌸 🌺 💐 🌷 🌻", "🌸 💐 🌷 🌺", "💐 🌷 🌸"]
+    
+    cheers_map = {
+        "English": [
+            "Extraordinary excellence and dedication! Your outstanding craftsmanship sets the gold standard for our studio. Keep shining! ✨",
+            "Remarkable work and warm hospitality! Your commitment to customer delight makes our salon proud. Keep rocking! 🌟",
+            "Superb effort and consistent service! Your talent and passion are truly appreciated by every customer. Keep climbing high! 🚀"
+        ],
+        "हिन्दी (Hindi)": [
+            "असाधारण उत्कृष्टता और अटूट निष्ठा! आपकी शानदार कारीगरी हमारे स्टूडियो के लिए मिसाल है। ऐसे ही चमकते रहें! ✨",
+            "उत्कृष्ट कार्य और मधुर आतिथ्य! ग्राहकों को खुश रखने का आपका समर्पण हमारे सैलून का गौरव बढ़ाता है। 🌟",
+            "शानदार प्रयास और निरंतर बेहतरीन सेवा! आपकी प्रतिभा और लगन की हर ग्राहक दिल से सराहना करता है। 🚀"
+        ],
+        "मराठी (Marathi)": [
+            "असामान्य कौशल्य आणि अतुलनीय समर्पण! तुमची कला आपल्या सलूनची शान वाढवते. असेच प्रगती करत राहा! ✨",
+            "उत्कृष्ट काम आणि ग्राहकांशी आपुलकीचे नाते! तुमचे योगदान आपल्या सलूनचा अभिमान आहे. 🌟",
+            "अथक परिश्रम आणि सातत्यपूर्ण दर्जेदार सेवा! प्रत्येक ग्राहक तुमच्या कौशल्याचे कौतुक करतो. 🚀"
+        ]
+    }
+    cheers = cheers_map[st.session_state.lang]
+
+    st.markdown(f"""
+    <div style='text-align: center; margin-bottom: 14px;'>
+        <h3 style='margin:0; color:#B45309;'>🎉 {T['celebration_modal_title']} 🎉</h3>
+        <p style='color:#64748B; font-size:0.92rem;'>{T['celebration_sub']}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    for idx, (_, row) in enumerate(top_3.iterrows()):
+        medal_title = medals[idx] if idx < len(medals) else f"🌟 Rank {idx+1}"
+        garland = flower_garlands[idx] if idx < len(flower_garlands) else "💐 🌸 💐"
+        quote = cheers[idx] if idx < len(cheers) else "Great work!"
+
+        st.markdown(f"""
+        <div class="performer-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0; color:#0F172A;">{medal_title}: <span style="color:#B45309;">{row['worker_name']}</span></h4>
+                <span style="font-size:1.15rem;">{garland}</span>
+            </div>
+            <p style="margin:6px 0 8px 0; font-size:0.95rem; color:#1E293B;">
+                <b>{T['sales_delivered']}:</b> <span style="color:#059669; font-weight:800;">₹ {row['Total_Sales']:,.2f}</span> &nbsp;|&nbsp; 
+                <b>{T['clients_attended']}:</b> <span style="font-weight:700;">{row['Clients_Served']}</span>
+            </p>
+            <p style="margin:0; font-size:0.87rem; font-style:italic; color:#475569; background:#F8FAFC; padding:8px 12px; border-radius:8px; border-left:4px solid #D4A338;">
+                “{quote}”
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.write("---")
+    if st.button(T["btn_close"], use_container_width=True):
+        st.rerun()
+
+# ----------------- PUBLIC CLIENT REQUEST ACCESS PAGE -----------------
+def render_request_access_page():
+    render_language_bar()
+    
+    c_pad1, col_req, c_pad2 = st.columns([1, 2, 1])
+    with col_req:
+        if st.button("⬅️ Back to Sign In Screen"):
+            st.session_state.show_request_form = False
+            st.rerun()
+
+        st.markdown("<div style='text-align: center; margin: 15px 0 10px 0;'>", unsafe_allow_html=True)
+        st.markdown("<span style='font-size: 2.8rem;'>💎 ✂️ 💄</span>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color: #0F172A; margin-bottom: 4px; font-weight:800;'>Get LuxeSalon OS For Your Business</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #64748B; font-size: 0.98rem;'>Affordable, modern digital POS and billing management for Salons & Beauty Parlours.</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-        with st.form("login_form"):
-            st.markdown("<h4 style='color: #0F172A; margin-bottom: 12px;'>Sign In to Your Salon</h4>", unsafe_allow_html=True)
-            username = st.text_input("Username", placeholder="e.g. Admin_Vikram, SalonOwner, or Staff").strip()
-            password = st.text_input("Password", type="password", placeholder="Enter your secret password")
+        st.markdown("""
+        <div class="pricing-card">
+            <span style="background:#FEF3C7; color:#B45309; padding:5px 14px; border-radius:20px; font-size:0.85rem; font-weight:800; text-transform:uppercase;">
+                🌟 Most Popular Starter Plan
+            </span>
+            <h1 style="color:#0F172A; margin:12px 0 0 0; font-size:2.4rem; font-weight:800;">₹ 300 <span style="font-size:1.1rem; color:#64748B; font-weight:500;">/ Month</span></h1>
+            <p style="color:#475569; margin:6px 0 14px 0; font-size:0.95rem;">Full access to Men's Salon & Women's Beauty Parlour Suite</p>
+            <div style="display:flex; justify-content:space-around; text-align:left; font-size:0.88rem; color:#1E293B; margin-top:10px;">
+                <div>
+                    <div>✅ Quick Multi-Service Billing POS</div>
+                    <div>✅ Daily & Monthly Sales Analytics</div>
+                    <div>✅ 7-Day Performance Trend Chart</div>
+                </div>
+                <div>
+                    <div>✅ Employee Sales & Top 3 Stars</div>
+                    <div>✅ Expense Tracking & All-in-One PnL</div>
+                    <div>✅ Multilingual (English / हिंदी / मराठी)</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("#### 📝 Fill Your Salon & Contact Details")
+        st.caption("Submit your information below. Your request will be directly queued in the Super Admin console for immediate contact and account activation:")
+
+        with st.form("public_request_access_form", clear_on_submit=True):
+            r_col1, r_col2 = st.columns(2)
+            with r_col1:
+                req_shop_name = st.text_input("Salon / Shop / Parlour Name *", placeholder="e.g. Royal Hair Studio")
+                req_cat = st.selectbox("Salon Category *", [
+                    "Men's Salon & Grooming", 
+                    "Women's Beauty Parlour", 
+                    "Unisex Studio & Spa"
+                ])
+                req_owner_name = st.text_input("Owner Full Name *", placeholder="e.g. Ramesh Kumar")
+                req_phone = st.text_input("Mobile Number (10 Digits) *", placeholder="e.g. 9876543210")
             
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            btn = st.form_submit_button("Sign In to Salon OS", use_container_width=True)
+            with r_col2:
+                req_staff = st.number_input("Number of Stylists / Staff *", min_value=1, max_value=50, value=2, step=1)
+                req_plan = st.selectbox("Selected Subscription Plan", [
+                    "Basic - ₹300 / Month",
+                    "Quarterly - ₹850 / 3 Months (Save ₹50)",
+                    "Annual - ₹3,000 / Year (Save ₹600)"
+                ])
+                req_user = st.text_input("Desired Login Username (Optional)", placeholder="e.g. royal_pune").strip()
+                req_notes = st.text_input("Special Requirements / Questions", placeholder="e.g. Need help configuring our rate list")
+
+            req_address = st.text_area("Complete Shop Address & City *", placeholder="e.g. Shop No. 4, MG Road, Camp, Pune, Maharashtra - 411001", height=80)
+
+            submit_request = st.form_submit_button("🚀 Submit Request & Get Started", use_container_width=True)
+
+        if submit_request:
+            clean_p = clean_phone_number(req_phone)
+            if not req_shop_name or not req_owner_name or not req_address or len(clean_p) != 10:
+                st.error("❌ Please provide all mandatory fields (*) and a valid 10-digit mobile number.")
+            else:
+                lead_data = {
+                    "request_id": f"REQ-{uuid.uuid4().hex[:6].upper()}",
+                    "shop_name": req_shop_name.strip(),
+                    "salon_type": req_cat,
+                    "address": req_address.strip(),
+                    "owner_name": req_owner_name.strip(),
+                    "owner_phone": clean_p,
+                    "num_staff": int(req_staff),
+                    "selected_plan": req_plan,
+                    "preferred_username": req_user if req_user else req_shop_name.lower().replace(" ", "_"),
+                    "notes": req_notes.strip() if req_notes else "None",
+                    "status": "pending"
+                }
+
+                try:
+                    supabase.table("access_requests").insert(lead_data).execute()
+                    st.success("🎉 Thank you! Your request has been queued successfully in the Admin Console.")
+                    st.info("📞 Our administration team will contact you shortly on your registered mobile number to activate your portal login.")
+                except Exception as e:
+                    st.error(f"Could not submit request. Please try again: {e}")
+
+# ----------------- LOGIN SCREEN WITH REQUEST ACCESS BUTTON -----------------
+def login_screen():
+    if st.session_state.show_request_form:
+        render_request_access_page()
+        return
+
+    render_language_bar()
+    c_pad1, col_login, c_pad2 = st.columns([1, 1.4, 1])
+    with col_login:
+        st.markdown("<div style='text-align: center; margin-top: 15px;'>", unsafe_allow_html=True)
+        st.markdown("<span style='font-size: 3rem;'>✨ ✂️ 💄 ✨</span>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='color: #0F172A; font-size: 2.1rem; margin-bottom: 4px;'>{T['welcome_title']}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color: #64748B; font-size: 1rem; margin-bottom: 20px;'>{T['welcome_subtitle']}</p>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        with st.form("login_form", clear_on_submit=False):
+            st.markdown(f"<h4 style='color: #0F172A; margin-bottom: 12px;'>{T['portal_signin']}</h4>", unsafe_allow_html=True)
+            chosen_category = st.selectbox(T["select_salon_type"], [
+                "Men's Salon & Grooming", 
+                "Women's Beauty Parlour", 
+                "Unisex Studio & Spa"
+            ])
+            username = st.text_input(T["username"]).strip()
+            password = st.text_input(T["password"], type="password")
+            
+            btn = st.form_submit_button(T["btn_signin"], use_container_width=True)
 
             if btn:
                 if not username or not password:
-                    st.error("Please enter both your username and password.")
+                    st.error("Please enter both username and password.")
                     return
 
                 hashed = hash_password(password)
@@ -197,28 +855,46 @@ def login_screen():
                 
                 if resp.data:
                     user_data = resp.data[0]
-                    # Verify Store Status & Validity for non-admin accounts
+                    store_obj = None
+
                     if user_data["role"] != "admin":
                         store_res = supabase.table("stores").select("*").eq("store_id", user_data["store_id"]).execute()
                         if not store_res.data:
-                            st.error("Store account not found. Please contact administration.")
+                            st.error("Salon record not found.")
                             return
-                        store_info = store_res.data[0]
-                        if store_info.get("status") != "active":
-                            st.error("⛔ This salon store has been deactivated. Please contact support.")
+                        store_obj = store_res.data[0]
+                        actual_cat = store_obj.get("salon_type", "Men's Salon & Grooming")
+
+                        def norm_cat(c):
+                            if "Women" in c: return "Women"
+                            if "Men" in c: return "Men"
+                            return "Unisex"
+
+                        if norm_cat(chosen_category) != norm_cat(actual_cat):
+                            st.error(f"⛔ Category Mismatch! This user account belongs to '{actual_cat}'. Please select the correct salon category above.")
+                            return
+
+                        if store_obj.get("status") != "active":
+                            st.error("⛔ This salon store has been deactivated. Please contact administration.")
                             return
                         
-                        trial_end = datetime.strptime(store_info["trial_end"], "%Y-%m-%d").date()
+                        trial_end = datetime.strptime(store_obj["trial_end"], "%Y-%m-%d").date()
                         if date.today() > trial_end:
-                            st.error(f"⛔ Your plan expired on {trial_end}. Please renew with the Admin.")
+                            st.error(f"⛔ Subscription expired on {trial_end}. Please renew.")
                             return
 
                     st.session_state.logged_in = True
                     st.session_state.user = user_data
-                    st.session_state.current_page = "admin_clients" if user_data["role"] == "admin" else "home"
+                    st.session_state.store_info = store_obj
+                    st.session_state.current_page = "admin_home" if user_data["role"] == "admin" else "home"
                     st.rerun()
                 else:
-                    st.error("Incorrect username or password. Please try again.")
+                    st.error("Incorrect username or password.")
+
+        st.write("")
+        if st.button(T["btn_request_access"], use_container_width=True):
+            st.session_state.show_request_form = True
+            st.rerun()
 
         st.markdown("""
         <div style='text-align: center; margin-top: 25px; color: #64748B; font-size: 0.9rem;'>
@@ -234,439 +910,454 @@ if not st.session_state.logged_in:
 user = st.session_state.user
 role = user["role"]
 store_id = user["store_id"]
+current_store = st.session_state.store_info
+salon_cat = current_store.get("salon_type", "Men's Salon & Grooming") if current_store else "Men's Salon & Grooming"
 
-# ----------------- LOG OFF HELPER & NAVIGATION -----------------
 def perform_logout():
     st.session_state.logged_in = False
     st.session_state.user = None
+    st.session_state.store_info = None
     st.session_state.current_page = "home"
+    st.session_state.admin_editing_store_id = None
+    st.session_state.show_request_form = False
     st.rerun()
 
-# Sidebar Log Off & Profile
+# ----------------- SIDEBAR -----------------
 with st.sidebar:
     st.markdown(f"### 👤 {user['name']}")
-    st.markdown(f"**Username:** `{user['username']}`")
+    st.markdown(f"**{T['username']}:** `{user['username']}`")
     st.markdown(f"**Role:** `{role.upper()}`")
+    if current_store:
+        st.markdown(f"**Store:** {current_store.get('store_name')}")
+        st.caption(f"Category: {salon_cat}")
     st.caption("Engineered by **Global Wealth International**")
     st.write("---")
-    if st.button("🚪 Log Off Account", key="sidebar_logout_btn", use_container_width=True):
+    if st.button(f"🚪 {T['log_off']}", key="sidebar_logout_btn", use_container_width=True):
         perform_logout()
 
-# Top Header Navigation Bar
+# ----------------- TOP BAR: LANGUAGE SELECTOR & NAVIGATION -----------------
+render_language_bar()
+
+if role != "admin" and current_store:
+    owner_label = "Owner" if role == "client" else "Stylist / Staff"
+    st.markdown(f"""
+    <div class="user-profile-header">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                <h3 style="margin:0; color:#0F172A; font-weight:800; font-size:1.35rem;">
+                    💈 {current_store.get('store_name')} 
+                    <span style="font-size:0.85rem; background:#FEF3C7; color:#B45309; padding:4px 10px; border-radius:6px; font-weight:700; margin-left:8px;">{salon_cat}</span>
+                </h3>
+                <p style="margin:4px 0 0 0; color:#475569; font-size:0.92rem;">
+                    👤 <b>User:</b> {user['name']} ({owner_label}) &nbsp;|&nbsp; 
+                    🔑 <b>Username:</b> <code style="background:#F1F5F9; padding:2px 6px; border-radius:4px;">{user['username']}</code> &nbsp;|&nbsp; 
+                    🆔 <b>User ID:</b> <code style="background:#F1F5F9; padding:2px 6px; border-radius:4px;">{user['user_id']}</code>
+                </p>
+            </div>
+            <div style="text-align:right;">
+                <span style="font-size:0.82rem; font-weight:700; color:#16A34A; background:#DCFCE7; padding:4px 10px; border-radius:6px;">🟢 ACTIVE SUBSCRIPTION</span>
+                <p style="margin:4px 0 0 0; color:#64748B; font-size:0.85rem;">
+                    Plan: <b>{current_store.get('plan_name', 'Custom Plan')}</b> | Expires: <b>{current_store.get('trial_end')}</b>
+                </p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if role == "admin":
-    nav1, nav2, nav3, nav4 = st.columns([4.5, 2.5, 2, 1.5])
+    nav1, nav2, nav3, nav4 = st.columns([4, 2.5, 2, 1.5])
     with nav1:
-        st.markdown(f"<h3 style='margin:0; font-weight:800; color:#0F172A;'>🛡️ Super Admin | {user['name']}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='margin:0; font-weight:800;'>✂️ Studio Central Console | {user['name']}</h3>", unsafe_allow_html=True)
     with nav2:
-        if st.button("🏢 Manage Salon Clients", use_container_width=True):
-            st.session_state.current_page = "admin_clients"
+        if st.button(f"🧾 {T['nav_admin_txns']}", use_container_width=True):
+            st.session_state.current_page = "admin_home"
+            st.session_state.admin_editing_store_id = None
             st.rerun()
     with nav3:
-        if st.button("💇 Trending Styles", use_container_width=True):
-            st.session_state.current_page = "lookbook"
+        if st.button(f"🏢 {T['nav_admin_salons']}", use_container_width=True):
+            st.session_state.current_page = "admin_salons"
             st.rerun()
     with nav4:
-        if st.button("🚪 Log Off", key="top_admin_logout", use_container_width=True):
+        if st.button(f"🚪 {T['log_off']}", key="top_admin_logout", use_container_width=True):
             perform_logout()
-else:
-    nav1, nav2, nav3, nav4, nav5, nav6 = st.columns([3, 2, 2, 2, 2, 1.5])
+
+else:  # Salon Owner / Worker
+    nav1, nav2, nav3, nav4, nav5 = st.columns([2.5, 2.2, 2, 2, 1.5])
     with nav1:
-        st.markdown(f"<h3 style='margin:0; font-weight:800; color:#0F172A;'>💈 {user['name']}</h3>", unsafe_allow_html=True)
-    with nav2:
-        if st.button("🏠 POS / Billing", use_container_width=True):
+        if st.button(f"🏠 {T['nav_pos']}", use_container_width=True):
             st.session_state.current_page = "home"
             st.rerun()
-    with nav3:
-        if st.button("💇 Trending Styles", use_container_width=True):
-            st.session_state.current_page = "lookbook"
-            st.rerun()
-    with nav4:
+    with nav2:
         if role == "client":
-            if st.button("💸 Expenses", use_container_width=True):
+            if st.button(f"📊 {T['nav_pnl']}", use_container_width=True):
+                st.session_state.current_page = "pnl"
+                st.rerun()
+        else:
+            if st.button(f"💇 {T['nav_lookbook']}", use_container_width=True):
+                st.session_state.current_page = "lookbook"
+                st.rerun()
+    with nav3:
+        if role == "client":
+            if st.button(f"💸 {T['nav_expenses']}", use_container_width=True):
                 st.session_state.current_page = "expenses"
                 st.rerun()
-    with nav5:
+    with nav4:
         if role == "client":
-            if st.button("⚙️ Store Config", use_container_width=True):
+            if st.button(f"⚙️ {T['nav_config']}", use_container_width=True):
                 st.session_state.current_page = "settings"
                 st.rerun()
-    with nav6:
-        if st.button("🚪 Log Off", key="top_user_logout", use_container_width=True):
-            perform_logout()
+        else:
+            if st.button(f"🚪 {T['log_off']}", key="top_worker_logout", use_container_width=True):
+                perform_logout()
+    with nav5:
+        if role == "client":
+            if st.button(f"🚪 {T['log_off']}", key="top_user_logout", use_container_width=True):
+                perform_logout()
 
 st.write("---")
 
 # =========================================================
-# MODAL DIALOG: CONFIRM CLIENT ONBOARDING
+# ADMIN: TRANSACTIONS & CENTRAL VIEW
 # =========================================================
-@st.dialog("📋 Confirm New Salon Onboarding")
-def confirm_client_modal(client_data):
-    st.markdown("Please review the salon details before creating the account:")
-    
-    review_info = {
-        "Salon / Shop Name": client_data["salon_name"],
-        "Owner Name": client_data["owner_name"],
-        "Mobile Number": f"+91 {client_data['owner_phone']}",
-        "Login Username": client_data["username"],
-        "Login Password": "•" * len(client_data["password"]),
-        "Subscription Plan": client_data["plan_option"],
-        "Validity Ends On": str(client_data["trial_end"])
-    }
-    
-    st.dataframe(pd.DataFrame(list(review_info.items()), columns=["Field", "Details"]), use_container_width=True, hide_index=True)
-    
-    st.write("---")
-    st.warning("⚠️ Once confirmed, the login credentials and initial rate card will be generated.")
-    
-    col_confirm, col_cancel = st.columns(2)
-    with col_confirm:
-        if st.button("✅ Yes, Confirm & Create", type="primary", use_container_width=True):
-            try:
-                # 1. Insert store
-                supabase.table("stores").insert({
-                    "store_id": client_data["store_id"],
-                    "store_name": client_data["salon_name"],
-                    "owner_name": client_data["owner_name"],
-                    "owner_phone": client_data["owner_phone"],
-                    "trial_start": client_data["trial_start"].isoformat(),
-                    "trial_end": client_data["trial_end"].isoformat(),
-                    "status": "active",
-                    "plan_name": client_data["plan_option"]
-                }).execute()
+if role == "admin" and st.session_state.current_page == "admin_home":
+    st.markdown(f"<h2 style='font-weight:700;'>🧾 {T['admin_txns_title']}</h2>", unsafe_allow_html=True)
+    st.caption(T["admin_txns_sub"])
 
-                # 2. Insert owner user
-                supabase.table("users").insert({
-                    "user_id": client_data["user_id"],
-                    "username": client_data["username"],
-                    "password_hash": hash_password(client_data["password"]),
-                    "role": "client",
-                    "store_id": client_data["store_id"],
-                    "name": client_data["owner_name"],
-                    "status": "active"
-                }).execute()
+    stores_data = supabase.table("stores").select("store_id, store_name, salon_type").execute().data
+    store_map = {s["store_id"]: f"{s['store_name']} ({s.get('salon_type', 'Men Salon')})" for s in stores_data} if stores_data else {}
 
-                # 3. Seed initial starter services
-                starter_services = [
-                    {"service_id": f"SRV-{uuid.uuid4().hex[:5].upper()}", "store_id": client_data["store_id"], "service_name": "Haircut & Styling", "price": 200},
-                    {"service_id": f"SRV-{uuid.uuid4().hex[:5].upper()}", "store_id": client_data["store_id"], "service_name": "Beard Grooming", "price": 120},
-                    {"service_id": f"SRV-{uuid.uuid4().hex[:5].upper()}", "store_id": client_data["store_id"], "service_name": "Facial Clean-up", "price": 500},
-                ]
-                supabase.table("services").insert(starter_services).execute()
+    col_flt1, col_flt2 = st.columns([2, 2])
+    with col_flt1:
+        selected_store_filter = st.selectbox("Filter by Salon / Parlour", ["All Salons & Parlours"] + list(store_map.values()))
 
-                st.success(f"🎉 Salon '{client_data['salon_name']}' successfully registered!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Failed to register client: {e}")
+    query = supabase.table("transactions").select("*").order("timestamp", desc=True)
+    if selected_store_filter != "All Salons & Parlours":
+        inv_map = {v: k for k, v in store_map.items()}
+        target_id = inv_map.get(selected_store_filter)
+        if target_id:
+            query = query.eq("store_id", target_id)
 
-    with col_cancel:
-        if st.button("❌ Cancel / Edit", use_container_width=True):
-            st.rerun()
+    tx_res = query.execute().data
+    tx_df = pd.DataFrame(tx_res)
 
-# =========================================================
-# MODAL DIALOG: EDIT SALON, OWNER, & CREDENTIALS
-# =========================================================
-@st.dialog("✏️ Edit Salon Client & Login Credentials")
-def edit_salon_modal(store):
-    s_id = store["store_id"]
-    current_name = store.get("store_name", "")
-    current_owner = store.get("owner_name", "")
-    current_phone = store.get("owner_phone", "")
-    current_plan = store.get("plan_name", "Free Trial - 30 Days")
-    
-    # Query owner account from users table
-    owner_user_res = supabase.table("users").select("user_id, username").eq("store_id", s_id).eq("role", "client").execute()
-    owner_user_data = owner_user_res.data[0] if owner_user_res.data else {}
-    current_uid = owner_user_data.get("user_id", "N/A")
-    current_username = owner_user_data.get("username", "")
+    today_str = date.today().isoformat()
+    if not tx_df.empty:
+        tx_df["amount"] = pd.to_numeric(tx_df["amount"], errors="coerce")
+        tx_df["date"] = pd.to_datetime(tx_df["timestamp"]).dt.strftime("%Y-%m-%d")
 
-    try:
-        current_expiry = datetime.strptime(store.get("trial_end", ""), "%Y-%m-%d").date()
-    except Exception:
-        current_expiry = date.today()
+        t_today = tx_df[tx_df["date"] == today_str]["amount"].sum()
+        t_all = tx_df["amount"].sum()
+        t_count = len(tx_df)
 
-    st.markdown(f"**Store ID:** `{s_id}` &nbsp;|&nbsp; **User Internal ID:** `{current_uid}`")
-    
-    with st.form(f"edit_form_{s_id}"):
-        st.markdown("##### 🏢 Salon Information")
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            edit_name = st.text_input("Salon / Business Name *", value=current_name).strip()
-            edit_owner = st.text_input("Owner Full Name *", value=current_owner).strip()
-        with col_s2:
-            edit_phone = st.text_input("Owner Mobile Number (10 Digits) *", value=current_phone).strip()
-
-        col_p, col_d = st.columns(2)
-        with col_p:
-            plan_choices = [
-                "Free Trial - 30 Days",
-                "Quarterly - 3 Months (90 Days)",
-                "Half-Yearly - 6 Months (180 Days)",
-                "Annual - 1 Year (365 Days)",
-                "Custom Plan"
-            ]
-            default_p_idx = plan_choices.index(current_plan) if current_plan in plan_choices else 4
-            edit_plan = st.selectbox("Assigned Plan", plan_choices, index=default_p_idx)
-        with col_d:
-            edit_expiry = st.date_input("Plan Expiry Date", value=current_expiry)
+        m1, m2, m3 = st.columns(3)
+        m1.metric(T["metric_today_sales"], f"₹ {t_today:,.2f}")
+        m2.metric("Total Overall Transactions", t_count)
+        m3.metric("Lifetime Volume", f"₹ {t_all:,.2f}")
 
         st.write("---")
-        st.markdown("##### 🔑 Login Credentials")
-        col_u1, col_u2 = st.columns(2)
-        with col_u1:
-            edit_username = st.text_input("Owner Login Username *", value=current_username).strip()
-        with col_u2:
-            edit_password = st.text_input("Set New Password (leave blank to keep current)", type="password", placeholder="Enter new password to change")
+        for _, tr in tx_df.iterrows():
+            s_label = store_map.get(tr.get("store_id"), tr.get("store_id", "N/A"))
+            with st.container():
+                c1, c2, c3, c4 = st.columns([2.5, 3, 2, 1.5])
+                with c1:
+                    st.markdown(f"**{s_label}**")
+                    st.caption(f"Time: {str(tr.get('timestamp'))[:19]}")
+                with c2:
+                    st.write(f"**Customer:** {tr.get('customer_name')} | **Stylist:** {tr.get('worker_name')}")
+                    st.caption(f"Services: {tr.get('service')}")
+                with c3:
+                    st.markdown(f"### ₹ {tr.get('amount', 0):,.2f}")
+                    st.caption(f"Payment: {tr.get('payment_mode')}")
+                with c4:
+                    if st.button("🗑️ Delete", key=f"del_tx_{tr['txn_id']}", use_container_width=True):
+                        supabase.table("transactions").delete().eq("txn_id", tr["txn_id"]).execute()
+                        st.toast(f"Removed transaction {tr['txn_id']}")
+                        st.rerun()
+                st.write("")
+    else:
+        st.info("No transactions logged yet.")
 
-        st.caption("ℹ️ Note: Database passwords are encrypted with SHA-256. To reset this client's password, type a new password above.")
+# =========================================================
+# ADMIN: SALONS, PARLOURS, REQUEST PIPELINE (ACCEPT/REJECT)
+# =========================================================
+elif role == "admin" and st.session_state.current_page == "admin_salons":
+    if st.session_state.admin_editing_store_id:
+        edit_sid = st.session_state.admin_editing_store_id
+        store_match = supabase.table("stores").select("*").eq("store_id", edit_sid).execute().data
+        
+        if not store_match:
+            st.error("Salon record not found.")
+            st.session_state.admin_editing_store_id = None
+            st.rerun()
 
-        btn_save = st.form_submit_button("💾 Save All Changes", use_container_width=True)
+        curr_s = store_match[0]
+        user_match = supabase.table("users").select("*").eq("store_id", edit_sid).eq("role", "client").execute().data
+        curr_u = user_match[0] if user_match else {}
 
-        if btn_save:
+        st.subheader(f"✏️ {T['btn_edit_info']}: {curr_s.get('store_name')}")
+
+        with st.form("admin_full_edit_form"):
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                cat_choices = ["Men's Salon & Grooming", "Women's Beauty Parlour", "Unisex Studio & Spa"]
+                existing_cat = curr_s.get("salon_type", "Men's Salon & Grooming")
+                cat_idx = cat_choices.index(existing_cat) if existing_cat in cat_choices else 0
+                edit_cat = st.selectbox(T["select_salon_type"], cat_choices, index=cat_idx)
+                edit_sname = st.text_input("Salon / Parlour Name *", value=curr_s.get("store_name", "")).strip()
+                edit_oname = st.text_input("Owner Full Name *", value=curr_s.get("owner_name", "")).strip()
+                edit_phone = st.text_input("Owner 10-Digit Mobile *", value=curr_s.get("owner_phone", "")).strip()
+
+            with col_e2:
+                edit_username = st.text_input(f"Owner {T['username']} *", value=curr_u.get("username", "")).strip()
+                edit_password = st.text_input(f"Set New {T['password']} (leave blank to keep unchanged)", type="password")
+                
+                plan_choices = ["Free Trial - 30 Days", "Basic - ₹300 / Month", "Quarterly - 90 Days", "Annual - 365 Days", "Custom Plan"]
+                existing_plan = curr_s.get("plan_name", "Free Trial - 30 Days")
+                plan_idx = plan_choices.index(existing_plan) if existing_plan in plan_choices else 0
+                edit_plan = st.selectbox("Subscription Plan", plan_choices, index=plan_idx)
+                
+                try:
+                    exp_date = datetime.strptime(curr_s.get("trial_end", ""), "%Y-%m-%d").date()
+                except Exception:
+                    exp_date = date.today() + timedelta(days=30)
+                edit_expiry = st.date_input("Plan Expiry Date", value=exp_date)
+
+            c_save, c_cancel = st.columns(2)
+            with c_save:
+                btn_save_changes = st.form_submit_button(f"💾 {T['btn_save_changes']}", use_container_width=True)
+            with c_cancel:
+                btn_cancel_edit = st.form_submit_button(f"❌ {T['btn_cancel']}", use_container_width=True)
+
+        if btn_cancel_edit:
+            st.session_state.admin_editing_store_id = None
+            st.rerun()
+
+        if btn_save_changes:
             clean_p = clean_phone_number(edit_phone)
-            if not edit_name or not edit_owner or not edit_phone or not edit_username:
-                st.error("Please fill in all mandatory fields.")
-            elif len(clean_p) != 10:
-                st.error("Invalid Mobile Number! Please enter a valid 10-digit number.")
+            if not edit_sname or not edit_oname or len(clean_p) != 10 or not edit_username:
+                st.error("Please fill in valid required details.")
             elif edit_password and len(edit_password) < 6:
                 st.error("New password must be at least 6 characters.")
             else:
-                if edit_username != current_username:
-                    dup_chk = supabase.table("users").select("username").eq("username", edit_username).execute()
-                    if dup_chk.data:
-                        st.error(f"Username '{edit_username}' is already taken by another account.")
-                        return
+                supabase.table("stores").update({
+                    "store_name": edit_sname,
+                    "salon_type": edit_cat,
+                    "owner_name": edit_oname,
+                    "owner_phone": clean_p,
+                    "plan_name": edit_plan,
+                    "trial_end": edit_expiry.isoformat()
+                }).eq("store_id", edit_sid).execute()
 
-                try:
-                    # 1. Update Store Record
-                    supabase.table("stores").update({
-                        "store_name": edit_name,
-                        "owner_name": edit_owner,
-                        "owner_phone": clean_p,
-                        "plan_name": edit_plan,
-                        "trial_end": edit_expiry.isoformat()
-                    }).eq("store_id", s_id).execute()
+                user_updates = {
+                    "name": edit_oname,
+                    "username": edit_username
+                }
+                if edit_password:
+                    user_updates["password_hash"] = hash_password(edit_password)
 
-                    # 2. Update Owner Record in Users Table
-                    user_update_payload = {
-                        "name": edit_owner,
-                        "username": edit_username
-                    }
-                    if edit_password:
-                        user_update_payload["password_hash"] = hash_password(edit_password)
+                if curr_u:
+                    supabase.table("users").update(user_updates).eq("user_id", curr_u["user_id"]).execute()
+                else:
+                    supabase.table("users").update(user_updates).eq("store_id", edit_sid).eq("role", "client").execute()
 
-                    if owner_user_data:
-                        supabase.table("users").update(user_update_payload).eq("user_id", current_uid).execute()
-                    else:
-                        supabase.table("users").update(user_update_payload).eq("store_id", s_id).eq("role", "client").execute()
+                st.success("✅ Information updated successfully!")
+                st.session_state.admin_editing_store_id = None
+                st.rerun()
 
-                    st.toast("✅ Salon details and credentials saved successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to update details: {e}")
+    else:
+        st.markdown(f"<h2 style='font-weight:700;'>🏢 {T['admin_salons_title']}</h2>", unsafe_allow_html=True)
+        tab_list, tab_requests, tab_create = st.tabs([
+            "📋 Registered Stores", 
+            "📩 Inbound Access Requests", 
+            f"➕ {T['onboard_salon']}"
+        ])
 
-# =========================================================
-# PAGE: TRENDING HAIRCUTS LOOKBOOK GALLERY
-# =========================================================
-if st.session_state.current_page == "lookbook":
-    st.markdown("<h2 style='font-weight:800;'>💇 Fresh & Trending Men's Haircuts & Grooming</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #64748B;'>Showcase these trending styles to your walk-in clients so they can effortlessly choose their next look.</p>", unsafe_allow_html=True)
+        with tab_list:
+            stores = supabase.table("stores").select("*").order("trial_end", desc=False).execute().data
+            if stores:
+                for s in stores:
+                    s_id = s["store_id"]
+                    is_active = (s.get("status") == "active")
+                    badge = "🟢 ACTIVE" if is_active else "🔴 INACTIVE"
+                    border = "#D4A338" if is_active else "#EF4444"
 
-    styles_catalog = [
-        {
-            "name": "Textured Modern Crop & High Fade",
-            "category": "Urban Short / Modern",
-            "desc": "Short blunt fringe with textured layers on top and a skin-tight high fade. Low maintenance, sharp look.",
-            "face_shape": "Oval, Round, Square",
-            "img": "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=700&q=80"
-        },
-        {
-            "name": "Classic Slicked Pompadour & Fade",
-            "category": "Timeless Executive",
-            "desc": "High volume top brushed upward and back, paired with a neat mid taper fade. Highly elegant.",
-            "face_shape": "Oval, Heart",
-            "img": "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=700&q=80"
-        },
-        {
-            "name": "Messy Textured Quiff + Clean Taper",
-            "category": "Casual / Party",
-            "desc": "Effortless, natural texture with medium top length and a soft scissor/clipper taper. Easy to style with matte clay.",
-            "face_shape": "Round, Square",
-            "img": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=700&q=80"
-        },
-        {
-            "name": "Curly Drop Fade & Beard Shape",
-            "category": "Curls & Volume",
-            "desc": "Maintains natural curly bounce on top while dropping cleanly behind the ear into a shaped luxury beard.",
-            "face_shape": "Oval, Diamond",
-            "img": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=700&q=80"
-        },
-        {
-            "name": "Clean Buzz Fade + Line Up",
-            "category": "Athletic / Minimalist",
-            "desc": "Precision razor-edge line up with a uniform buzz on top and a seamless gradient skin fade.",
-            "face_shape": "Square, Chiseled",
-            "img": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=700&q=80"
-        },
-        {
-            "name": "Sleek Side-Part Comb Over",
-            "category": "Corporate / Professional",
-            "desc": "A defined surgical or natural part with a clean side sweep. Perfectly suited for formal occasions.",
-            "face_shape": "All Face Shapes",
-            "img": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=700&q=80"
-        }
-    ]
-
-    c1, c2, c3 = st.columns(3)
-    cols = [c1, c2, c3]
-
-    for idx, item in enumerate(styles_catalog):
-        with cols[idx % 3]:
-            st.markdown(f"""
-            <div class="haircut-card">
-                <img src="{item['img']}" alt="{item['name']}">
-                <div class="haircut-info">
-                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">{item['category']}</span>
-                    <h3 style="margin: 6px 0; font-size: 1.25rem;">{item['name']}</h3>
-                    <p style="color: #64748B; font-size: 0.88rem; line-height: 1.4; margin-bottom: 8px;">{item['desc']}</p>
-                    <div style="font-size: 0.82rem; font-weight: 600; color: #0F172A;">
-                        Best For: <span style="font-weight: 400; color: #475569;">{item['face_shape']}</span>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-# =========================================================
-# SUPER ADMIN: CLIENT ONBOARDING & SUBSCRIPTION MANAGER
-# =========================================================
-elif role == "admin" and st.session_state.current_page == "admin_clients":
-    st.markdown("<h2 style='font-weight:700;'>🏢 Salon Client Licensing & Activation</h2>", unsafe_allow_html=True)
-
-    tab_list, tab_create = st.tabs(["📋 Registered Salon Stores & Access Control", "➕ Onboard New Salon Client"])
-
-    # --- TAB 1: MANAGE STORES, ACTIVE/INACTIVE & EDIT DETAILS ---
-    with tab_list:
-        st.subheader("Salon Accounts & Live Subscription Status")
-        stores_res = supabase.table("stores").select("*").order("trial_end", desc=False).execute().data
-        
-        if stores_res:
-            for store in stores_res:
-                s_id = store["store_id"]
-                s_name = store.get("store_name", "Unnamed Salon")
-                s_owner = store.get("owner_name", "N/A")
-                s_phone = store.get("owner_phone", "N/A")
-                s_status = store.get("status", "active")
-                s_plan = store.get("plan_name", "Custom Plan")
-                s_end = store.get("trial_end", "N/A")
-
-                # Visual status styling
-                is_active = (s_status == "active")
-                status_badge = "🟢 ACTIVE" if is_active else "🔴 INACTIVE"
-                border_color = "#D4A338" if is_active else "#EF4444"
-
-                with st.container():
                     st.markdown(f"""
-                    <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-left: 6px solid {border_color}; padding:16px 20px; border-radius:10px; margin-bottom:12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <h3 style="margin:0; font-size:1.25rem; color:#0F172A;">{s_name} <span style="font-size:0.85rem; font-weight:700; margin-left:10px;">{status_badge}</span></h3>
-                                <p style="margin:4px 0 0 0; color:#64748B; font-size:0.9rem;">
-                                    <b>Owner:</b> {s_owner} | <b>Phone:</b> {s_phone} | <b>Plan:</b> {s_plan} | <b>Expires:</b> {s_end}
-                                </p>
-                            </div>
-                        </div>
+                    <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-left: 6px solid {border}; padding:14px 18px; border-radius:10px; margin-bottom:10px;">
+                        <h4 style="margin:0; color:#0F172A;">{s['store_name']} <span style="font-size:0.85rem; color:#B45309;">[{s.get('salon_type', 'Men Salon')}]</span> - {badge}</h4>
+                        <p style="margin:2px 0 0 0; color:#64748B; font-size:0.88rem;">
+                            <b>Owner:</b> {s.get('owner_name')} | <b>Phone:</b> {s.get('owner_phone')} | <b>Plan:</b> {s.get('plan_name')} | <b>Expires:</b> {s.get('trial_end')}
+                        </p>
                     </div>
                     """, unsafe_allow_html=True)
 
-                    c_btn1, c_btn2, c_btn3 = st.columns([2, 2, 2])
-                    with c_btn1:
-                        if is_active:
-                            if st.button(f"⛔ Deactivate Store", key=f"deact_{s_id}", use_container_width=True):
-                                supabase.table("stores").update({"status": "inactive"}).eq("store_id", s_id).execute()
-                                st.toast(f"Deactivated {s_name}!")
-                                st.rerun()
-                        else:
-                            if st.button(f"✅ Activate Store", key=f"act_{s_id}", use_container_width=True):
-                                supabase.table("stores").update({"status": "active"}).eq("store_id", s_id).execute()
-                                st.toast(f"Activated {s_name}!")
-                                st.rerun()
-
-                    with c_btn2:
-                        if st.button("✏️ Edit Details & Password", key=f"edit_btn_{s_id}", use_container_width=True):
-                            edit_salon_modal(store)
-
-                    with c_btn3:
-                        if st.button(f"➕ Extend 30 Days", key=f"ext_{s_id}", use_container_width=True):
-                            try:
-                                curr_end = datetime.strptime(s_end, "%Y-%m-%d").date()
-                            except Exception:
-                                curr_end = date.today()
-                            new_end = max(curr_end, date.today()) + timedelta(days=30)
-                            supabase.table("stores").update({"trial_end": new_end.isoformat()}).eq("store_id", s_id).execute()
-                            st.toast(f"Extended {s_name} until {new_end}!")
+                    c1, c2, c3, c4 = st.columns([2.5, 2, 2, 1.8])
+                    with c1:
+                        if st.button(f"✏️ {T['btn_edit_info']}", key=f"edit_info_{s_id}", use_container_width=True):
+                            st.session_state.admin_editing_store_id = s_id
                             st.rerun()
-
+                    with c2:
+                        toggle_lbl = "⛔ Deactivate" if is_active else "✅ Activate"
+                        new_st = "inactive" if is_active else "active"
+                        if st.button(toggle_lbl, key=f"tog_{s_id}", use_container_width=True):
+                            supabase.table("stores").update({"status": new_st}).eq("store_id", s_id).execute()
+                            st.rerun()
+                    with c3:
+                        if st.button(f"➕ {T['btn_extend_30']}", key=f"ext_{s_id}", use_container_width=True):
+                            curr_e = datetime.strptime(s["trial_end"], "%Y-%m-%d").date()
+                            new_e = max(curr_e, date.today()) + timedelta(days=30)
+                            supabase.table("stores").update({"trial_end": new_e.isoformat()}).eq("store_id", s_id).execute()
+                            st.toast("Plan extended 30 days!")
+                            st.rerun()
+                    with c4:
+                        if st.button(f"🗑️ {T['btn_delete_salon']}", key=f"del_store_{s_id}", use_container_width=True):
+                            supabase.table("stores").delete().eq("store_id", s_id).execute()
+                            st.toast(f"Deleted {s['store_name']}")
+                            st.rerun()
                     st.write("")
-        else:
-            st.info("No salon stores registered yet. Click 'Onboard New Salon Client' tab to add your first client.")
-
-    # --- TAB 2: ONBOARD NEW CLIENT WITH VALIDATIONS & CONFIRMATION POPUP ---
-    with tab_create:
-        st.subheader("Register a New Salon & Set Plan")
-        with st.form("add_client_form", clear_on_submit=False):
-            col_a, col_b = st.columns(2)
-            with col_a:
-                salon_name = st.text_input("Salon / Business Name *", placeholder="e.g. Royal Unisex Salon").strip()
-                owner_name = st.text_input("Owner Full Name *", placeholder="e.g. Ramesh Kumar").strip()
-                owner_phone = st.text_input("Owner Mobile Number (10 Digits) *", placeholder="e.g. 9876543210").strip()
-            with col_b:
-                client_username = st.text_input("Owner Login Username *", placeholder="e.g. royal_salon_pune").strip()
-                client_password = st.text_input("Owner Login Password (min 6 chars) *", type="password")
-                plan_option = st.selectbox("Subscription Plan Validity", [
-                    "Free Trial - 30 Days",
-                    "Quarterly - 3 Months (90 Days)",
-                    "Half-Yearly - 6 Months (180 Days)",
-                    "Annual - 1 Year (365 Days)"
-                ])
-
-            plan_days_map = {
-                "Free Trial - 30 Days": 30,
-                "Quarterly - 3 Months (90 Days)": 90,
-                "Half-Yearly - 6 Months (180 Days)": 180,
-                "Annual - 1 Year (365 Days)": 365
-            }
-
-            submit_onboard = st.form_submit_button("🚀 Create Client Account", use_container_width=True)
-
-        if submit_onboard:
-            if not salon_name or not owner_name or not owner_phone or not client_username or not client_password:
-                st.error("❌ Please fill in all mandatory fields.")
-            elif len(clean_phone_number(owner_phone)) != 10:
-                st.error("❌ Invalid Mobile Number! Please enter a valid 10-digit mobile number.")
-            elif len(client_password) < 6:
-                st.error("❌ Password is too short! Please enter at least 6 characters.")
             else:
-                existing_user = supabase.table("users").select("username").eq("username", client_username).execute()
-                if existing_user.data:
-                    st.error(f"❌ Username '{client_username}' is already taken! Please choose a different username.")
+                st.info("No salon stores registered yet.")
+
+        # TAB 2: INBOUND ACCESS REQUESTS WITH ACCEPT & REJECT WORKFLOW
+        with tab_requests:
+            st.subheader("📩 Inbound Access Requests")
+            st.caption("Review incoming salon leads, call to verify, and activate or reject their registration:")
+
+            col_sw1, col_sw2, _ = st.columns([2.2, 2.5, 4])
+            with col_sw1:
+                if st.button("⏳ View Pending Requests", use_container_width=True):
+                    st.session_state.req_view_filter = "pending"
+                    st.rerun()
+            with col_sw2:
+                if st.button("📋 View Accepted / Rejected History", use_container_width=True):
+                    st.session_state.req_view_filter = "history"
+                    st.rerun()
+
+            try:
+                if st.session_state.req_view_filter == "pending":
+                    st.markdown("##### ⏳ Pending Approval Pipeline")
+                    reqs = supabase.table("access_requests").select("*").eq("status", "pending").order("created_at", desc=True).execute().data
+                    if reqs:
+                        for rq in reqs:
+                            rid = rq["request_id"]
+                            st.markdown(f"""
+                            <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-left: 6px solid #D4A338; padding:16px 20px; border-radius:10px; margin-bottom:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <h3 style="margin:0; font-size:1.25rem; color:#0F172A;">
+                                        {rq.get('shop_name')} 
+                                        <span style="font-size:0.85rem; color:#B45309; margin-left:8px;">[{rq.get('salon_type')}]</span>
+                                    </h3>
+                                    <span style="background:#FEF3C7; color:#B45309; padding:4px 10px; border-radius:6px; font-weight:700; font-size:0.82rem;">
+                                        Plan: {rq.get('selected_plan')}
+                                    </span>
+                                </div>
+                                <p style="margin:6px 0 0 0; color:#1E293B; font-size:0.92rem;">
+                                    👤 <b>Owner:</b> {rq.get('owner_name')} &nbsp;|&nbsp; 
+                                    📞 <b>Phone:</b> <a href="tel:{rq.get('owner_phone')}" style="color:#2563EB; font-weight:700;">+91 {rq.get('owner_phone')}</a> &nbsp;|&nbsp; 
+                                    👥 <b>Staff:</b> {rq.get('num_staff')}
+                                </p>
+                                <p style="margin:4px 0 0 0; color:#64748B; font-size:0.88rem;">
+                                    📍 <b>Address:</b> {rq.get('address')}
+                                </p>
+                                <p style="margin:2px 0 0 0; color:#64748B; font-size:0.85rem;">
+                                    💬 <b>Remarks / Notes:</b> {rq.get('notes')}
+                                </p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            c_acc, c_rej, c_trash = st.columns([2, 2, 4])
+                            with c_acc:
+                                if st.button(f"✅ Accept & Provision", key=f"acc_{rid}", use_container_width=True):
+                                    accept_request_modal(rq)
+                            with c_rej:
+                                if st.button(f"❌ Reject Request", key=f"rej_{rid}", use_container_width=True):
+                                    supabase.table("access_requests").update({"status": "rejected"}).eq("request_id", rid).execute()
+                                    st.toast(f"Request for {rq['shop_name']} marked as rejected.")
+                                    st.rerun()
+                            with c_trash:
+                                if st.button("🗑️ Delete Record", key=f"del_rq_{rid}"):
+                                    supabase.table("access_requests").delete().eq("request_id", rid).execute()
+                                    st.toast("Record deleted.")
+                                    st.rerun()
+                            st.write("")
+                    else:
+                        st.info("No pending requests right now. All requests are cleared!")
+
                 else:
-                    t_start = date.today()
-                    t_end = t_start + timedelta(days=plan_days_map[plan_option])
-                    client_payload = {
-                        "store_id": f"STORE-{uuid.uuid4().hex[:6].upper()}",
-                        "user_id": f"U{uuid.uuid4().hex[:5].upper()}",
-                        "salon_name": salon_name,
-                        "owner_name": owner_name,
-                        "owner_phone": clean_phone_number(owner_phone),
-                        "username": client_username,
-                        "password": client_password,
-                        "plan_option": plan_option,
-                        "trial_start": t_start,
-                        "trial_end": t_end
-                    }
-                    confirm_client_modal(client_payload)
+                    st.markdown("##### 📋 Accepted & Rejected History")
+                    history_reqs = supabase.table("access_requests").select("*").neq("status", "pending").order("created_at", desc=True).execute().data
+                    if history_reqs:
+                        for hq in history_reqs:
+                            h_status = hq.get("status", "unknown").upper()
+                            badge_color = "#16A34A" if h_status == "ACCEPTED" else "#EF4444"
+                            st.markdown(f"""
+                            <div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:12px 18px; border-radius:8px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between;">
+                                    <b>{hq.get('shop_name')}</b> ({hq.get('salon_type')}) - Owner: {hq.get('owner_name')} (+91 {hq.get('owner_phone')})
+                                    <span style="color:{badge_color}; font-weight:800; font-size:0.85rem;">{h_status}</span>
+                                </div>
+                                <div style="font-size:0.83rem; color:#64748B; margin-top:3px;">
+                                    Plan: {hq.get('selected_plan')} | Address: {hq.get('address')}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.info("No history records found.")
+            except Exception as e:
+                st.error(f"Error accessing requests: {e}")
+
+        # TAB 3: ONBOARD NEW SALON DIRECTLY
+        with tab_create:
+            with st.form("admin_create_salon_form", clear_on_submit=True):
+                st.subheader(T["onboard_salon"])
+                c1, c2 = st.columns(2)
+                with c1:
+                    s_type = st.selectbox(T["select_salon_type"], [
+                        "Men's Salon & Grooming", 
+                        "Women's Beauty Parlour", 
+                        "Unisex Studio & Spa"
+                    ])
+                    s_name = st.text_input("Salon / Parlour Name *", placeholder="e.g. Blossom Ladies Parlour")
+                    o_name = st.text_input("Owner Full Name *", placeholder="e.g. Sunita Sharma")
+                    o_phone = st.text_input("Owner 10-digit Phone *", placeholder="e.g. 9876543210")
+                with c2:
+                    u_name = st.text_input(f"Owner {T['username']} *", placeholder="e.g. blossom_parlour").strip()
+                    p_word = st.text_input(f"Owner {T['password']} *", type="password")
+                    plan_opt = st.selectbox("Subscription Plan", ["Basic - ₹300 / Month", "Free Trial - 30 Days", "Quarterly - 90 Days", "Annual - 365 Days"])
+
+                submit_salon_btn = st.form_submit_button(f"🚀 {T['onboard_salon']}", use_container_width=True)
+
+            if submit_salon_btn:
+                clean_p = clean_phone_number(o_phone)
+                if not s_name or not o_name or len(clean_p) != 10 or not u_name or not p_word:
+                    st.error("Please fill in all mandatory details with a valid 10-digit phone number.")
+                else:
+                    dup = supabase.table("users").select("username").eq("username", u_name).execute().data
+                    if dup:
+                        st.error(f"Username '{u_name}' is already taken. Please choose another.")
+                    else:
+                        ns_id = f"STORE-{uuid.uuid4().hex[:6].upper()}"
+                        nu_id = f"U{uuid.uuid4().hex[:5].upper()}"
+                        days = 30 if ("30" in plan_opt or "300" in plan_opt) else (90 if "90" in plan_opt else 365)
+                        tstart = date.today()
+                        tend = tstart + timedelta(days=days)
+
+                        payload = {
+                            "store_id": ns_id,
+                            "user_id": nu_id,
+                            "salon_name": s_name,
+                            "salon_type": s_type,
+                            "owner_name": o_name,
+                            "owner_phone": clean_p,
+                            "username": u_name,
+                            "password": p_word,
+                            "plan_opt": plan_opt,
+                            "trial_start": tstart,
+                            "trial_end": tend
+                        }
+                        confirm_new_salon_modal(payload)
 
 # =========================================================
-# CLIENT / WORKER: HOME POS & BILLING (MULTI-SERVICE SELECTION)
+# SALON OWNER / WORKER: BILLING POS, 7-DAY CHART & STATS
 # =========================================================
 elif st.session_state.current_page == "home":
     today_str = date.today().isoformat()
@@ -679,21 +1370,78 @@ elif st.session_state.current_page == "home":
     if not txns_df.empty:
         txns_df["amount"] = pd.to_numeric(txns_df["amount"], errors="coerce")
         txns_df["date"] = pd.to_datetime(txns_df["timestamp"]).dt.strftime("%Y-%m-%d")
-        
         today_records = txns_df[txns_df["date"] == today_str]
         today_sales = today_records["amount"].sum()
         today_entries = len(today_records)
-
-        month_records = txns_df[txns_df["date"] >= first_of_month]
-        month_sales = month_records["amount"].sum()
+        month_sales = txns_df[txns_df["date"] >= first_of_month]["amount"].sum()
 
     m1, m2, m3 = st.columns(3)
-    m1.metric("Today's Customers", today_entries)
-    m2.metric("Today's Total Sales", f"₹ {today_sales:,.2f}")
-    m3.metric("Current Month Sales", f"₹ {month_sales:,.2f}")
+    m1.metric(T["metric_today_cust"], today_entries)
+    m2.metric(T["metric_today_sales"], f"₹ {today_sales:,.2f}")
+    m3.metric(T["metric_month_sales"], f"₹ {month_sales:,.2f}")
 
+    # ---------------- 7-DAY EARNINGS BAR CHART WITH TOP VALUES ----------------
     st.write("---")
+    st.subheader(f"📈 {T['trend_7days']}")
+    
+    past_7_dates = [(date.today() - timedelta(days=i)) for i in range(6, -1, -1)]
+    past_7_df = pd.DataFrame({
+        "Date": [d.strftime("%Y-%m-%d") for d in past_7_dates],
+        "Day_Label": [d.strftime("%a (%d %b)") for d in past_7_dates],
+        "Earnings": 0.0
+    })
 
+    if not txns_df.empty:
+        daily_sums = txns_df.groupby("date")["amount"].sum().to_dict()
+        past_7_df["Earnings"] = past_7_df["Date"].map(daily_sums).fillna(0.0)
+
+    past_7_df["Label"] = past_7_df["Earnings"].apply(lambda v: f"₹{int(v)}" if v > 0 else "₹0")
+
+    bars = alt.Chart(past_7_df).mark_bar(
+        cornerRadiusTopLeft=6,
+        cornerRadiusTopRight=6,
+        color="#D4A338"
+    ).encode(
+        x=alt.X("Day_Label:N", title="Day", sort=None, axis=alt.Axis(labelAngle=0, labelFontWeight="bold")),
+        y=alt.Y("Earnings:Q", title="Earnings (₹)", scale=alt.Scale(domain=[0, max(past_7_df["Earnings"].max() * 1.25, 1000)]))
+    )
+
+    text_labels = bars.mark_text(
+        align='center',
+        baseline='bottom',
+        dy=-5,
+        fontSize=12,
+        fontWeight='bold',
+        color='#0F172A'
+    ).encode(
+        text='Label:N'
+    )
+
+    chart = (bars + text_labels).properties(height=260).configure_view(strokeWidth=0)
+    st.altair_chart(chart, use_container_width=True)
+
+    # ---------------- TOP 3 PERFORMERS & TODAY'S PERFORMANCE (FOR OWNER) ----------------
+    if role == "client":
+        st.write("---")
+        c_p_title, c_p_btn = st.columns([3, 2.5])
+        with c_p_title:
+            st.subheader(f"👥 {T['emp_recognition']}")
+        with c_p_btn:
+            if st.button(T["btn_reveal_top3"], use_container_width=True):
+                show_top_performers_modal(txns_df)
+
+        if not txns_df.empty:
+            today_tx = txns_df[txns_df["date"] == today_str]
+            if not today_tx.empty:
+                emp_summary = today_tx.groupby("worker_name").agg(
+                    Customers_Served=("customer_name", "count"),
+                    Total_Sales_INR=("amount", "sum")
+                ).reset_index()
+                emp_summary.columns = [T["staff_stylist"], T["metric_today_cust"], T["metric_today_sales"]]
+                st.dataframe(emp_summary, use_container_width=True, hide_index=True)
+
+    # ---------------- QUICK BILLING POS (FIXED: NO INVALID CALLBACKS IN FORM) ----------------
+    st.write("---")
     col_entry, col_view = st.columns([1.1, 1.4])
 
     staff_res = supabase.table("users").select("name").eq("store_id", store_id).execute().data
@@ -701,75 +1449,68 @@ elif st.session_state.current_page == "home":
     default_staff_idx = staff_options.index(user["name"]) if user["name"] in staff_options else 0
 
     services_res = supabase.table("services").select("service_name, price").eq("store_id", store_id).execute().data
-    services_dict = {item["service_name"]: float(item["price"]) for item in services_res} if services_res else {"Basic Haircut": 150.0}
+    services_dict = {item["service_name"]: float(item["price"]) for item in services_res} if services_res else {"Standard Cut": 150.0}
     service_names = list(services_dict.keys())
 
-    # Multi-service auto-calculation sync
-    def sync_multi_services():
-        selected = st.session_state.selected_services_list
-        calc_total = sum(services_dict.get(s, 0.0) for s in selected)
-        st.session_state.service_amount_input = calc_total
+    # State initialization for POS auto-clean
+    if "pos_customer" not in st.session_state:
+        st.session_state.pos_customer = ""
+    if "pos_selected_services" not in st.session_state:
+        st.session_state.pos_selected_services = [service_names[0]] if service_names else []
 
-    if "selected_services_list" not in st.session_state:
-        st.session_state.selected_services_list = [service_names[0]] if service_names else []
+    def sync_multi_services():
+        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in st.session_state.pos_selected_services)
+
     if "service_amount_input" not in st.session_state:
-        st.session_state.service_amount_input = services_dict.get(service_names[0], 0.0) if service_names else 0.0
+        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in st.session_state.pos_selected_services)
 
     with col_entry:
-        st.subheader("⚡ Quick POS Entry")
+        st.subheader(T["quick_pos"])
         c_staff, c_cust = st.columns(2)
         with c_staff:
-            worker_selected = st.selectbox("Staff / Stylist", staff_options, index=default_staff_idx)
+            worker_selected = st.selectbox(T["staff_stylist"], staff_options, index=default_staff_idx, key="pos_worker")
         with c_cust:
-            customer = st.text_input("Customer Name / Mobile *", placeholder="e.g. Amit Sharma")
+            customer = st.text_input(T["cust_name_mobile"], placeholder="e.g. Priya Sharma", key="pos_customer")
 
-        # Multi-select component allowing 1 or more services
         selected_services = st.multiselect(
-            "Services Performed (Select 1 or more)",
+            T["services_rendered"],
             options=service_names,
-            default=st.session_state.selected_services_list,
-            key="selected_services_list",
-            on_change=sync_multi_services,
-            placeholder="Choose services..."
+            default=st.session_state.pos_selected_services,
+            key="pos_selected_services",
+            on_change=sync_multi_services
         )
 
         c_amt, c_pay = st.columns(2)
         with c_amt:
-            amount = st.number_input(
-                "Total Amount (₹) [Auto-Calculated]",
-                min_value=0.0,
-                step=50.0,
-                key="service_amount_input",
-                help="Sum of selected services. You can edit this amount for custom pricing/discounts."
-            )
+            amount = st.number_input(T["total_bill"], min_value=0.0, step=50.0, key="service_amount_input")
         with c_pay:
-            payment = st.selectbox("Payment Mode", ["UPI", "Cash", "Card"])
+            payment = st.selectbox(T["payment_mode"], ["UPI", "Cash", "Card"], key="pos_payment_mode")
 
-        if st.button("💾 Record & Save Bill", use_container_width=True):
-            if not customer:
-                st.error("Please enter a customer name or mobile number.")
-            elif not selected_services:
-                st.error("Please select at least one service.")
-            elif amount <= 0:
-                st.error("Please enter a valid bill amount.")
+        if st.button(T["btn_save_sale"], use_container_width=True):
+            if not customer.strip() or not selected_services or amount <= 0:
+                st.error("Please fill in valid customer details, select services, and ensure amount is greater than ₹0.")
             else:
-                combined_services = ", ".join(selected_services)
-                new_txn = {
+                supabase.table("transactions").insert({
                     "txn_id": f"TXN-{uuid.uuid4().hex[:6].upper()}",
                     "store_id": store_id,
                     "logged_by_user": user["username"],
                     "worker_name": worker_selected,
-                    "customer_name": customer,
-                    "service": combined_services,
+                    "customer_name": customer.strip(),
+                    "service": ", ".join(selected_services),
                     "amount": amount,
                     "payment_mode": payment
-                }
-                supabase.table("transactions").insert(new_txn).execute()
-                st.toast(f"✅ Saved: ₹{amount} for {customer}", icon="🎉")
+                }).execute()
+
+                # Clean fields immediately after recording
+                st.session_state.pos_customer = ""
+                st.session_state.pos_selected_services = [service_names[0]] if service_names else []
+                st.session_state.service_amount_input = services_dict.get(service_names[0], 0.0) if service_names else 0.0
+                
+                st.toast("Sale logged successfully!")
                 st.rerun()
 
     with col_view:
-        st.subheader("📋 Today's Entries")
+        st.subheader(T["today_entries"])
         if not txns_df.empty:
             today_view = txns_df[txns_df["date"] == today_str]
             if role == "worker":
@@ -777,122 +1518,273 @@ elif st.session_state.current_page == "home":
             if not today_view.empty:
                 st.dataframe(today_view[["timestamp", "customer_name", "service", "worker_name", "amount", "payment_mode"]], use_container_width=True, hide_index=True)
             else:
-                st.info("No bills entered today yet.")
+                st.info(T["no_bills_today"])
         else:
-            st.info("No transactions logged yet.")
+            st.info(T["no_bills_today"])
 
 # =========================================================
-# EXPENSES PAGE
+# OWNER: ALL-IN-ONE PROFIT & LOSS (EARNINGS VS EXPENSES)
+# =========================================================
+elif st.session_state.current_page == "pnl" and role == "client":
+    st.markdown(f"<h2>📊 {T['pnl_title']}</h2>", unsafe_allow_html=True)
+    
+    txns = supabase.table("transactions").select("*").eq("store_id", store_id).execute().data
+    exps = supabase.table("expenses").select("*").eq("store_id", store_id).execute().data
+    
+    tx_df = pd.DataFrame(txns)
+    exp_df = pd.DataFrame(exps)
+
+    total_income = tx_df["amount"].astype(float).sum() if not tx_df.empty else 0.0
+    total_expense = exp_df["amount"].astype(float).sum() if not exp_df.empty else 0.0
+    net_profit = total_income - total_expense
+
+    p1, p2, p3 = st.columns(3)
+    p1.metric(T["total_rev"], f"₹ {total_income:,.2f}")
+    p2.metric(T["total_exp"], f"₹ {total_expense:,.2f}")
+    p3.metric(T["net_profit"], f"₹ {net_profit:,.2f}")
+
+    st.write("---")
+    c_left, c_right = st.columns(2)
+    with c_left:
+        st.subheader(T["rev_by_mode"])
+        if not tx_df.empty:
+            pay_dist = tx_df.groupby("payment_mode")["amount"].astype(float).sum().reset_index()
+            pay_dist.columns = [T["payment_mode"], T["total_bill"]]
+            st.dataframe(pay_dist, use_container_width=True, hide_index=True)
+    with c_right:
+        st.subheader(T["exp_by_cat"])
+        if not exp_df.empty:
+            cat_dist = exp_df.groupby("category")["amount"].astype(float).sum().reset_index()
+            cat_dist.columns = [T["exp_cat"], T["exp_amount"]]
+            st.dataframe(cat_dist, use_container_width=True, hide_index=True)
+
+# =========================================================
+# OWNER / ADMIN: EXPENSES WITH AUTO-CLEAN FORM & DELETION
 # =========================================================
 elif st.session_state.current_page == "expenses" and role in ["admin", "client"]:
-    st.markdown("<h2 style='font-weight:700;'>💸 Store Expenses & Purchases</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2>💸 {T['expenses_title']}</h2>", unsafe_allow_html=True)
     col_exp_form, col_exp_list = st.columns([1, 1.4])
 
     with col_exp_form:
-        st.subheader("Log an Expense")
-        category = st.selectbox("Expense Category", [
-            "Salon Material / Supplies", 
-            "Shop Rent", 
-            "Employee Salary", 
-            "Electricity & Utilities", 
-            "Maintenance & Repairs",
-            "Other"
-        ])
-        desc = st.text_input("Expense Description / Vendor", placeholder="e.g. Shampoo stock, Monthly shop rent")
-        exp_amount = st.number_input("Amount Paid (₹)", min_value=0.0, step=100.0)
-        exp_date = st.date_input("Date", value=date.today())
+        st.subheader(T["log_expense"])
+        with st.form("add_expense_form", clear_on_submit=True):
+            category = st.selectbox(T["exp_cat"], ["Salon/Beauty Products", "Rent", "Staff Salary", "Utilities", "Maintenance", "Tea/Coffee", "Other"])
+            desc = st.text_input(T["exp_desc"], placeholder="e.g. L'Oreal shampoo stock, Tea expenses")
+            exp_amount = st.number_input(T["exp_amount"], min_value=0.0, step=100.0)
+            exp_date = st.date_input(T["exp_date"], value=date.today())
 
-        if st.button("Record Expense", use_container_width=True):
-            if exp_amount <= 0:
-                st.error("Please enter a valid amount.")
-            else:
-                new_exp = {
+            submit_exp = st.form_submit_button(T["btn_save_exp"], use_container_width=True)
+
+        if submit_exp:
+            if exp_amount > 0:
+                supabase.table("expenses").insert({
                     "expense_id": f"EXP-{uuid.uuid4().hex[:6].upper()}",
                     "store_id": store_id,
                     "category": category,
-                    "description": desc if desc else category,
+                    "description": desc,
                     "amount": exp_amount,
                     "expense_date": exp_date.isoformat(),
                     "logged_by": user["username"]
-                }
-                supabase.table("expenses").insert(new_exp).execute()
-                st.toast("Expense logged successfully!")
+                }).execute()
+                st.toast("Saved expense!")
                 st.rerun()
+            else:
+                st.error("Please enter a valid expense amount.")
 
     with col_exp_list:
-        st.subheader("Expense Breakdown")
+        st.subheader(T["exp_history"])
         exp_res = supabase.table("expenses").select("*").eq("store_id", store_id).order("expense_date", desc=True).execute().data
         if exp_res:
-            exp_df = pd.DataFrame(exp_res)
-            exp_df["amount"] = exp_df["amount"].astype(float)
-            st.metric("Total Expenses Logged", f"₹ {exp_df['amount'].sum():,.2f}")
-            
-            cat_summary = exp_df.groupby("category")["amount"].sum().reset_index()
-            cat_summary.columns = ["Category", "Total (₹)"]
-            st.dataframe(cat_summary, use_container_width=True, hide_index=True)
-            st.write("---")
-            st.dataframe(exp_df[["expense_date", "category", "description", "amount", "logged_by"]], use_container_width=True, hide_index=True)
+            for ex in exp_res:
+                c_e1, c_e2, c_e3 = st.columns([4, 2, 1.5])
+                with c_e1:
+                    st.write(f"**{ex.get('category')}** - {ex.get('description', '')}")
+                    st.caption(f"Date: {ex.get('expense_date')} | Logged by: {ex.get('logged_by')}")
+                with c_e2:
+                    st.markdown(f"**₹ {float(ex.get('amount', 0)):,.2f}**")
+                with c_e3:
+                    if st.button("🗑️ Delete", key=f"del_exp_{ex['expense_id']}"):
+                        supabase.table("expenses").delete().eq("expense_id", ex["expense_id"]).execute()
+                        st.toast("Expense deleted!")
+                        st.rerun()
+                st.write("")
         else:
             st.info("No expenses recorded yet.")
 
 # =========================================================
-# STORE CONFIG (RATES & STAFF)
+# CATEGORY-FILTERED LOOKBOOK & STYLES
+# =========================================================
+elif st.session_state.current_page == "lookbook":
+    st.markdown(f"<h2>💇 {T['lookbook_title']}</h2>", unsafe_allow_html=True)
+
+    def render_mens_catalog():
+        m_col1, m_col2 = st.columns(2)
+        with m_col1:
+            st.markdown("""
+            <div class="haircut-card">
+                <img src="https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=700&q=80">
+                <div class="haircut-info">
+                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Modern Urban</span>
+                    <h4>Textured Crop & High Fade</h4>
+                    <p style="color:#64748B;">Low maintenance, athletic and sharp look with clean sides.</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with m_col2:
+            st.markdown("""
+            <div class="haircut-card">
+                <img src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=700&q=80">
+                <div class="haircut-info">
+                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Classic Executive</span>
+                    <h4>Executive Pompadour + Taper</h4>
+                    <p style="color:#64748B;">High volume brushed top paired with a neat grooming beard.</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    def render_womens_catalog():
+        w_col1, w_col2 = st.columns(2)
+        with w_col1:
+            st.markdown("""
+            <div class="haircut-card">
+                <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=700&q=80">
+                <div class="haircut-info">
+                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Luxury Hair Spa</span>
+                    <h4>Balayage & Layered Blowout</h4>
+                    <p style="color:#64748B;">Lustrous depth and soft feminine feather movement.</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with w_col2:
+            st.markdown("""
+            <div class="haircut-card">
+                <img src="https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=700&q=80">
+                <div class="haircut-info">
+                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Bridal & Party</span>
+                    <h4>Bridal Makeover & Glow Facial</h4>
+                    <p style="color:#64748B;">Complete party makeover, glow rejuvenation and styling.</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    if "Women" in salon_cat:
+        st.info(f"Showing beauty catalogue for: **{salon_cat}**")
+        render_womens_catalog()
+    elif "Men" in salon_cat:
+        st.info(f"Showing styles catalogue for: **{salon_cat}**")
+        render_mens_catalog()
+    else:
+        tab_men, tab_women = st.tabs([T["tab_men"], T["tab_women"]])
+        with tab_men:
+            render_mens_catalog()
+        with tab_women:
+            render_womens_catalog()
+
+# =========================================================
+# STORE CONFIG: SERVICES & EMPLOYEES (WITH CONFIRM MODALS & AUTO-CLEAN)
 # =========================================================
 elif st.session_state.current_page == "settings" and role in ["admin", "client"]:
-    st.markdown("<h2 style='font-weight:700;'>⚙️ Store Configuration</h2>", unsafe_allow_html=True)
-    tab_serv, tab_emp = st.tabs(["💇 Services & Rates Catalog", "👥 Employees / Staff"])
+    st.markdown(f"<h2>⚙️ {T['store_config_title']}</h2>", unsafe_allow_html=True)
+    tab_serv, tab_emp = st.tabs([f"💅 {T['tab_services']}", f"👥 {T['tab_employees']}"])
 
+    # 1. SERVICES WITH AUTO-CLEAN FORM
     with tab_serv:
-        st.subheader("Custom Services & Auto-Fill Rates")
-        services_db = supabase.table("services").select("*").eq("store_id", store_id).execute().data
+        st.subheader(T["tab_services"])
+        services_db = supabase.table("services").select("*").eq("store_id", store_id).order("service_name").execute().data
+        
         if services_db:
-            s_df = pd.DataFrame(services_db)
-            st.dataframe(s_df[["service_name", "price"]], use_container_width=True, hide_index=True)
-            del_serv = st.selectbox("Select Service to Remove", s_df["service_name"].tolist())
-            if st.button("Delete Service"):
-                supabase.table("services").delete().eq("store_id", store_id).eq("service_name", del_serv).execute()
-                st.rerun()
+            for srv in services_db:
+                c_s1, c_s2, c_s3 = st.columns([4, 2, 1.5])
+                with c_s1:
+                    st.write(f"✂️ **{srv.get('service_name')}**")
+                with c_s2:
+                    st.write(f"₹ {float(srv.get('price', 0)):,.2f}")
+                with c_s3:
+                    if st.button("🗑️ Delete", key=f"del_srv_{srv.get('service_id')}"):
+                        supabase.table("services").delete().eq("service_id", srv["service_id"]).execute()
+                        st.toast(f"Deleted {srv['service_name']}!")
+                        st.rerun()
+                st.write("")
+        else:
+            st.info("No services added yet.")
 
         st.write("---")
-        st.subheader("➕ Add New Service Rate")
-        c1, c2 = st.columns(2)
-        with c1:
-            new_sname = st.text_input("Service Name (e.g. Keratin Treatment)")
-        with c2:
-            new_sprice = st.number_input("Standard Rate (₹)", min_value=0.0, step=50.0)
-        if st.button("Save Rate to Catalog"):
-            if new_sname and new_sprice > 0:
+        st.subheader(f"➕ {T['add_new_service']}")
+        with st.form("add_new_service_form", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                placeholder_text = "e.g. Fruit Facial, Waxing" if "Women" in salon_cat else "e.g. Beard Shape, Fade Cut"
+                ns = st.text_input(T["service_name"], placeholder=placeholder_text)
+            with c2:
+                np = st.number_input(T["standard_rate"], min_value=0.0, step=50.0)
+            submit_srv = st.form_submit_button(T["btn_save_service"])
+
+        if submit_srv:
+            if ns and np > 0:
                 supabase.table("services").insert({
                     "service_id": f"SRV-{uuid.uuid4().hex[:5].upper()}",
                     "store_id": store_id,
-                    "service_name": new_sname.strip(),
-                    "price": new_sprice
+                    "service_name": ns.strip(),
+                    "price": np
                 }).execute()
+                st.toast("Service added successfully!")
                 st.rerun()
+            else:
+                st.error("Please enter a valid service name and rate.")
 
+    # 2. EMPLOYEES WITH CONFIRMATION POPUP & AUTO-CLEAN FORM
     with tab_emp:
-        st.subheader("Salon Staff Accounts")
-        staff_records = supabase.table("users").select("username, name, role, status").eq("store_id", store_id).execute().data
+        st.subheader(T["tab_employees"])
+        staff_records = supabase.table("users").select("user_id, username, name, role, status").eq("store_id", store_id).execute().data
+        
         if staff_records:
-            st.dataframe(pd.DataFrame(staff_records), use_container_width=True, hide_index=True)
-        with st.expander("➕ Add New Staff Account"):
-            emp_name = st.text_input("Staff Full Name")
-            emp_user = st.text_input("Staff Login Username")
-            emp_pass = st.text_input("Staff Login Password", type="password")
-            if st.button("Create Staff Login"):
-                if emp_name and emp_user and emp_pass:
-                    supabase.table("users").insert({
-                        "user_id": f"U{uuid.uuid4().hex[:5].upper()}",
-                        "username": emp_user.strip(),
-                        "password_hash": hash_password(emp_pass),
-                        "role": "worker",
-                        "store_id": store_id,
-                        "name": emp_name,
-                        "status": "active"
-                    }).execute()
-                    st.rerun()
+            for stf in staff_records:
+                c_u1, c_u2, c_u3, c_u4 = st.columns([3, 2, 2, 1.5])
+                with c_u1:
+                    st.write(f"👤 **{stf.get('name')}**")
+                    st.caption(f"Role: {stf.get('role').upper()}")
+                with c_u2:
+                    st.write(f"{T['username']}: `{stf.get('username')}`")
+                with c_u3:
+                    st.write(f"Status: **{stf.get('status', 'active').upper()}**")
+                with c_u4:
+                    if stf.get("role") == "worker":
+                        if st.button("🗑️ Delete", key=f"del_user_{stf.get('user_id')}"):
+                            supabase.table("users").delete().eq("user_id", stf["user_id"]).execute()
+                            st.toast(f"Removed employee {stf.get('name')}!")
+                            st.rerun()
+                st.write("")
+        else:
+            st.info("No staff accounts added yet.")
+        
+        st.write("---")
+        with st.expander(f"➕ {T['add_new_staff']}"):
+            with st.form("create_staff_form", clear_on_submit=True):
+                en = st.text_input(T["staff_full_name"], placeholder="e.g. Rahul Verma")
+                eu = st.text_input(T["staff_username"], placeholder="e.g. rahul_stylist").strip()
+                ep = st.text_input(T["staff_password"], type="password")
+                submit_staff = st.form_submit_button(T["btn_save_staff"])
 
-# ----------------- GLOBAL FOOTER BRANDING -----------------
+            if submit_staff:
+                if not en or not eu or not ep:
+                    st.error("Please fill in all staff details.")
+                elif len(ep) < 6:
+                    st.error("Staff password must be at least 6 characters.")
+                else:
+                    chk_u = supabase.table("users").select("username").eq("username", eu).execute().data
+                    if chk_u:
+                        st.error(f"Username '{eu}' is already in use. Please select a different username.")
+                    else:
+                        staff_payload = {
+                            "user_id": f"U{uuid.uuid4().hex[:5].upper()}",
+                            "store_id": store_id,
+                            "name": en.strip(),
+                            "username": eu,
+                            "password": ep
+                        }
+                        confirm_new_staff_modal(staff_payload)
+
+# ----------------- GLOBAL FOOTER -----------------
 st.markdown("""
 <div class="brand-footer">
     Developed & Engineered by <span class="brand-highlight">Global Wealth International</span> • All Rights Reserved
