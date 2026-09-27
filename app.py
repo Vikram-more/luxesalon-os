@@ -15,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Fresh, Bright Professional Salon Styling
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap');
@@ -100,14 +99,6 @@ st.markdown("""
         margin-bottom: 18px;
     }
 
-    [data-testid="stForm"] {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 24px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
-    }
-
     .haircut-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -171,7 +162,7 @@ def clean_phone_number(phone_raw: str) -> str:
         digits = digits[1:]
     return digits
 
-# ----------------- MULTI-LANGUAGE TRANSLATIONS (EN / HI / MR) -----------------
+# ----------------- TRANSLATIONS -----------------
 TRANSLATIONS = {
     "English": {
         "welcome_title": "Welcome to LuxeSalon OS",
@@ -193,6 +184,8 @@ TRANSLATIONS = {
         "metric_today_cust": "Today's Customers",
         "metric_today_sales": "Today's Total Sales",
         "metric_month_sales": "Current Month Sales",
+        "metric_my_today_sales": "My Sales Today",
+        "metric_my_today_cust": "My Customers Today",
         "trend_7days": "Past 7 Days Earnings Trend",
         "emp_recognition": "Employee Sales & Recognition",
         "btn_reveal_top3": "Reveal Top 3 Performers & Celebrate",
@@ -272,6 +265,8 @@ TRANSLATIONS = {
         "metric_today_cust": "आज के कुल ग्राहक",
         "metric_today_sales": "आज की कुल बिक्री",
         "metric_month_sales": "इस महीने की बिक्री",
+        "metric_my_today_sales": "मेरी आज की बिक्री",
+        "metric_my_today_cust": "मेरे आज के ग्राहक",
         "trend_7days": "पिछले 7 दिनों की कमाई का रुझान",
         "emp_recognition": "कर्मचारी बिक्री और सम्मान",
         "btn_reveal_top3": "🏆 टॉप 3 कर्मचारी देखें व सम्मानित करें",
@@ -351,6 +346,8 @@ TRANSLATIONS = {
         "metric_today_cust": "आजचे एकूण ग्राहक",
         "metric_today_sales": "आजची एकूण विक्री",
         "metric_month_sales": "या महिन्याची विक्री",
+        "metric_my_today_sales": "माझी आजची विक्री",
+        "metric_my_today_cust": "माझे आजचे ग्राहक",
         "trend_7days": "मागील ७ दिवसांचा कमाईचा आलेख",
         "emp_recognition": "कर्मचारी कामगिरी आणि सन्मान",
         "btn_reveal_top3": "🏆 सर्वोत्तम ३ कर्मचारी पहा व सन्मान करा",
@@ -428,11 +425,11 @@ if "show_request_form" not in st.session_state:
     st.session_state.show_request_form = False
 if "req_view_filter" not in st.session_state:
     st.session_state.req_view_filter = "pending"
+if "editing_service_id" not in st.session_state:
+    st.session_state.editing_service_id = None
 
-# Quick accessor for active language
 T = TRANSLATIONS[st.session_state.lang]
 
-# ----------------- TOP GLOBAL LANGUAGE SELECTOR -----------------
 def render_language_bar():
     c_space, c_lang = st.columns([5.5, 2.5])
     with c_lang:
@@ -446,13 +443,37 @@ def render_language_bar():
             st.session_state.lang = lang_choice
             st.rerun()
 
-# ----------------- MODAL DIALOG: ACCEPT & PROVISION REQUEST -----------------
+# ----------------- MODAL DIALOGS -----------------
+@st.dialog("✏️ Edit Service & Pricing")
+def edit_service_modal(srv):
+    st.markdown(f"### Update Service: **{srv['service_name']}**")
+    with st.form("edit_service_dialog_form"):
+        new_name = st.text_input("Service Name *", value=srv["service_name"]).strip()
+        new_price = st.number_input("Standard Rate (₹) *", min_value=0.0, value=float(srv.get("price", 0.0)), step=20.0)
+        c_up, c_can = st.columns(2)
+        with c_up:
+            up_btn = st.form_submit_button("💾 Update Service", use_container_width=True)
+        with c_can:
+            can_btn = st.form_submit_button("Cancel", use_container_width=True)
+
+    if can_btn:
+        st.rerun()
+
+    if up_btn:
+        if not new_name or new_price <= 0:
+            st.error("Please enter a valid service name and price.")
+        else:
+            supabase.table("services").update({
+                "service_name": new_name,
+                "price": new_price
+            }).eq("service_id", srv["service_id"]).execute()
+            st.toast("Service updated successfully!")
+            st.rerun()
+
 @st.dialog("✅ Provision & Activate Client Salon")
 def accept_request_modal(req):
     st.markdown(f"### Activating: **{req['shop_name']}**")
     st.markdown(f"**Owner:** {req['owner_name']} | **Phone:** +91 {req['owner_phone']}")
-    st.caption("Review credentials and plan validity below to create their live login:")
-
     with st.form(f"provision_req_form_{req['request_id']}"):
         col_u, col_p = st.columns(2)
         with col_u:
@@ -491,7 +512,6 @@ def accept_request_modal(req):
                     tstart = date.today()
                     tend = tstart + timedelta(days=days)
 
-                    # 1. Insert store
                     supabase.table("stores").insert({
                         "store_id": new_store_id,
                         "store_name": req["shop_name"],
@@ -504,7 +524,6 @@ def accept_request_modal(req):
                         "plan_name": plan_sel
                     }).execute()
 
-                    # 2. Insert owner user
                     supabase.table("users").insert({
                         "user_id": new_user_id,
                         "username": prov_user,
@@ -515,7 +534,6 @@ def accept_request_modal(req):
                         "status": "active"
                     }).execute()
 
-                    # 3. Seed starter rate cards
                     if "Women" in req["salon_type"]:
                         starter = [
                             {"service_id": f"S{uuid.uuid4().hex[:4].upper()}", "store_id": new_store_id, "service_name": "Haircut & Blowdry", "price": 400},
@@ -538,15 +556,12 @@ def accept_request_modal(req):
                         ]
                     supabase.table("services").insert(starter).execute()
 
-                    # 4. Mark request status as accepted
                     supabase.table("access_requests").update({"status": "accepted"}).eq("request_id", req["request_id"]).execute()
-
-                    st.success(f"🎉 Salon '{req['shop_name']}' successfully activated! Credentials: {prov_user} / {prov_pass}")
+                    st.success(f"🎉 Salon '{req['shop_name']}' successfully activated!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to activate salon: {e}")
 
-# ----------------- MODAL DIALOG: CONFIRM NEW SALON DIRECT ONBOARDING -----------------
 @st.dialog("📋 Confirm New Salon Registration")
 def confirm_new_salon_modal(p):
     st.markdown("### Please verify the salon account details:")
@@ -620,7 +635,6 @@ def confirm_new_salon_modal(p):
         if st.button("❌ Cancel / Edit", use_container_width=True):
             st.rerun()
 
-# ----------------- MODAL DIALOG: CONFIRM NEW STAFF CREATION -----------------
 @st.dialog("👤 Confirm New Staff Account")
 def confirm_new_staff_modal(p):
     st.markdown("### Please review the staff member details:")
@@ -655,11 +669,9 @@ def confirm_new_staff_modal(p):
         if st.button("❌ Cancel", use_container_width=True):
             st.rerun()
 
-# ----------------- MODAL DIALOG: TOP 3 PERFORMERS CELEBRATION -----------------
 @st.dialog(f"💐 🏆 {T['celebration_modal_title']} 🏆 💐")
 def show_top_performers_modal(txns_df):
     st.balloons()
-    
     if txns_df.empty:
         st.info("No transaction data available yet.")
         return
@@ -670,10 +682,8 @@ def show_top_performers_modal(txns_df):
     ).reset_index().sort_values(by="Total_Sales", ascending=False)
 
     top_3 = emp_rank.head(3)
-
     medals = [T["champ_1st"], T["star_2nd"], T["achiever_3rd"]]
     flower_garlands = ["🌸 🌺 💐 🌷 🌻", "🌸 💐 🌷 🌺", "💐 🌷 🌸"]
-    
     cheers_map = {
         "English": [
             "Extraordinary excellence and dedication! Your outstanding craftsmanship sets the gold standard for our studio. Keep shining! ✨",
@@ -725,10 +735,9 @@ def show_top_performers_modal(txns_df):
     if st.button(T["btn_close"], use_container_width=True):
         st.rerun()
 
-# ----------------- PUBLIC CLIENT REQUEST ACCESS PAGE -----------------
+# ----------------- PUBLIC REQUEST ACCESS PAGE -----------------
 def render_request_access_page():
     render_language_bar()
-    
     c_pad1, col_req, c_pad2 = st.columns([1, 2, 1])
     with col_req:
         if st.button("⬅️ Back to Sign In Screen"):
@@ -789,7 +798,6 @@ def render_request_access_page():
                 req_notes = st.text_input("Special Requirements / Questions", placeholder="e.g. Need help configuring our rate list")
 
             req_address = st.text_area("Complete Shop Address & City *", placeholder="e.g. Shop No. 4, MG Road, Camp, Pune, Maharashtra - 411001", height=80)
-
             submit_request = st.form_submit_button("🚀 Submit Request & Get Started", use_container_width=True)
 
         if submit_request:
@@ -818,7 +826,7 @@ def render_request_access_page():
                 except Exception as e:
                     st.error(f"Could not submit request. Please try again: {e}")
 
-# ----------------- LOGIN SCREEN WITH REQUEST ACCESS BUTTON -----------------
+# ----------------- LOGIN SCREEN -----------------
 def login_screen():
     if st.session_state.show_request_form:
         render_request_access_page()
@@ -842,7 +850,6 @@ def login_screen():
             ])
             username = st.text_input(T["username"]).strip()
             password = st.text_input(T["password"], type="password")
-            
             btn = st.form_submit_button(T["btn_signin"], use_container_width=True)
 
             if btn:
@@ -1217,7 +1224,7 @@ elif role == "admin" and st.session_state.current_page == "admin_salons":
             else:
                 st.info("No salon stores registered yet.")
 
-        # TAB 2: INBOUND ACCESS REQUESTS WITH ACCEPT & REJECT WORKFLOW
+        # TAB 2: INBOUND ACCESS REQUESTS
         with tab_requests:
             st.subheader("📩 Inbound Access Requests")
             st.caption("Review incoming salon leads, call to verify, and activate or reject their registration:")
@@ -1357,7 +1364,7 @@ elif role == "admin" and st.session_state.current_page == "admin_salons":
                         confirm_new_salon_modal(payload)
 
 # =========================================================
-# SALON OWNER / WORKER: BILLING POS, 7-DAY CHART & STATS
+# SALON OWNER / WORKER: BILLING POS & TRANSACTIONS
 # =========================================================
 elif st.session_state.current_page == "home":
     today_str = date.today().isoformat()
@@ -1366,62 +1373,73 @@ elif st.session_state.current_page == "home":
     txns_data = supabase.table("transactions").select("*").eq("store_id", store_id).execute().data
     txns_df = pd.DataFrame(txns_data)
 
-    today_sales, month_sales, today_entries = 0.0, 0.0, 0
     if not txns_df.empty:
-        txns_df["amount"] = pd.to_numeric(txns_df["amount"], errors="coerce")
+        txns_df["amount"] = pd.to_numeric(txns_df["amount"], errors="coerce").fillna(0.0)
         txns_df["date"] = pd.to_datetime(txns_df["timestamp"]).dt.strftime("%Y-%m-%d")
-        today_records = txns_df[txns_df["date"] == today_str]
-        today_sales = today_records["amount"].sum()
+
+    # Metrics calculation (differentiated for Owner vs. Worker)
+    if role == "worker":
+        my_txns = txns_df[txns_df["worker_name"] == user["name"]] if not txns_df.empty else pd.DataFrame()
+        my_today = my_txns[my_txns["date"] == today_str] if not my_txns.empty else pd.DataFrame()
+        my_today_sales = my_today["amount"].sum() if not my_today.empty else 0.0
+        my_today_cust = len(my_today)
+        my_month_sales = my_txns[my_txns["date"] >= first_of_month]["amount"].sum() if not my_txns.empty else 0.0
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric(T["metric_my_today_cust"], my_today_cust)
+        m2.metric(T["metric_my_today_sales"], f"₹ {my_today_sales:,.2f}")
+        m3.metric("My Current Month Sales", f"₹ {my_month_sales:,.2f}")
+
+    else:  # Owner (Client)
+        today_records = txns_df[txns_df["date"] == today_str] if not txns_df.empty else pd.DataFrame()
+        today_sales = today_records["amount"].sum() if not today_records.empty else 0.0
         today_entries = len(today_records)
-        month_sales = txns_df[txns_df["date"] >= first_of_month]["amount"].sum()
+        month_sales = txns_df[txns_df["date"] >= first_of_month]["amount"].sum() if not txns_df.empty else 0.0
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric(T["metric_today_cust"], today_entries)
-    m2.metric(T["metric_today_sales"], f"₹ {today_sales:,.2f}")
-    m3.metric(T["metric_month_sales"], f"₹ {month_sales:,.2f}")
+        m1, m2, m3 = st.columns(3)
+        m1.metric(T["metric_today_cust"], today_entries)
+        m2.metric(T["metric_today_sales"], f"₹ {today_sales:,.2f}")
+        m3.metric(T["metric_month_sales"], f"₹ {month_sales:,.2f}")
 
-    # ---------------- 7-DAY EARNINGS BAR CHART WITH TOP VALUES ----------------
-    st.write("---")
-    st.subheader(f"📈 {T['trend_7days']}")
-    
-    past_7_dates = [(date.today() - timedelta(days=i)) for i in range(6, -1, -1)]
-    past_7_df = pd.DataFrame({
-        "Date": [d.strftime("%Y-%m-%d") for d in past_7_dates],
-        "Day_Label": [d.strftime("%a (%d %b)") for d in past_7_dates],
-        "Earnings": 0.0
-    })
+        # ---------------- 7-DAY EARNINGS TREND BAR CHART (FOR OWNER ONLY) ----------------
+        st.write("---")
+        st.subheader(f"📈 {T['trend_7days']}")
+        
+        past_7_dates = [(date.today() - timedelta(days=i)) for i in range(6, -1, -1)]
+        past_7_df = pd.DataFrame({
+            "Date": [d.strftime("%Y-%m-%d") for d in past_7_dates],
+            "Day_Label": [d.strftime("%a (%d %b)") for d in past_7_dates],
+            "Earnings": 0.0
+        })
 
-    if not txns_df.empty:
-        daily_sums = txns_df.groupby("date")["amount"].sum().to_dict()
-        past_7_df["Earnings"] = past_7_df["Date"].map(daily_sums).fillna(0.0)
+        if not txns_df.empty:
+            daily_sums = txns_df.groupby("date")["amount"].sum().to_dict()
+            past_7_df["Earnings"] = past_7_df["Date"].map(daily_sums).fillna(0.0)
 
-    past_7_df["Label"] = past_7_df["Earnings"].apply(lambda v: f"₹{int(v)}" if v > 0 else "₹0")
+        past_7_df["Label"] = past_7_df["Earnings"].apply(lambda v: f"₹{int(v)}" if v > 0 else "₹0")
 
-    bars = alt.Chart(past_7_df).mark_bar(
-        cornerRadiusTopLeft=6,
-        cornerRadiusTopRight=6,
-        color="#D4A338"
-    ).encode(
-        x=alt.X("Day_Label:N", title="Day", sort=None, axis=alt.Axis(labelAngle=0, labelFontWeight="bold")),
-        y=alt.Y("Earnings:Q", title="Earnings (₹)", scale=alt.Scale(domain=[0, max(past_7_df["Earnings"].max() * 1.25, 1000)]))
-    )
+        bars = alt.Chart(past_7_df).mark_bar(
+            cornerRadiusTopLeft=6,
+            cornerRadiusTopRight=6,
+            color="#D4A338"
+        ).encode(
+            x=alt.X("Day_Label:N", title="Day", sort=None, axis=alt.Axis(labelAngle=0, labelFontWeight="bold")),
+            y=alt.Y("Earnings:Q", title="Earnings (₹)", scale=alt.Scale(domain=[0, max(past_7_df["Earnings"].max() * 1.25, 1000)]))
+        )
 
-    text_labels = bars.mark_text(
-        align='center',
-        baseline='bottom',
-        dy=-5,
-        fontSize=12,
-        fontWeight='bold',
-        color='#0F172A'
-    ).encode(
-        text='Label:N'
-    )
+        text_labels = bars.mark_text(
+            align='center',
+            baseline='bottom',
+            dy=-5,
+            fontSize=12,
+            fontWeight='bold',
+            color='#0F172A'
+        ).encode(text='Label:N')
 
-    chart = (bars + text_labels).properties(height=260).configure_view(strokeWidth=0)
-    st.altair_chart(chart, use_container_width=True)
+        chart = (bars + text_labels).properties(height=260).configure_view(strokeWidth=0)
+        st.altair_chart(chart, use_container_width=True)
 
-    # ---------------- TOP 3 PERFORMERS & TODAY'S PERFORMANCE (FOR OWNER) ----------------
-    if role == "client":
+        # ---------------- RECOGNITION (OWNER ONLY) ----------------
         st.write("---")
         c_p_title, c_p_btn = st.columns([3, 2.5])
         with c_p_title:
@@ -1440,55 +1458,67 @@ elif st.session_state.current_page == "home":
                 emp_summary.columns = [T["staff_stylist"], T["metric_today_cust"], T["metric_today_sales"]]
                 st.dataframe(emp_summary, use_container_width=True, hide_index=True)
 
-    # ---------------- QUICK BILLING POS (FIXED: NO INVALID CALLBACKS IN FORM) ----------------
+    # ---------------- QUICK BILLING POS (FAILSAFE & SANITIZED) ----------------
     st.write("---")
     col_entry, col_view = st.columns([1.1, 1.4])
 
-    staff_res = supabase.table("users").select("name").eq("store_id", store_id).execute().data
-    staff_options = [s["name"] for s in staff_res] if staff_res else [user["name"]]
-    default_staff_idx = staff_options.index(user["name"]) if user["name"] in staff_options else 0
-
-    services_res = supabase.table("services").select("service_name, price").eq("store_id", store_id).execute().data
+    # Fetch store services
+    services_res = supabase.table("services").select("service_id, service_name, price").eq("store_id", store_id).order("service_name").execute().data
     services_dict = {item["service_name"]: float(item["price"]) for item in services_res} if services_res else {"Standard Cut": 150.0}
     service_names = list(services_dict.keys())
 
-    # State initialization for POS auto-clean
-    if "pos_customer" not in st.session_state:
-        st.session_state.pos_customer = ""
-    if "pos_selected_services" not in st.session_state:
-        st.session_state.pos_selected_services = [service_names[0]] if service_names else []
+    # Prevent StreamlitDefaultNotInOptionsError: Ensure session state matches current options
+    if "selected_services_list" not in st.session_state:
+        st.session_state.selected_services_list = [service_names[0]] if service_names else []
+    else:
+        st.session_state.selected_services_list = [s for s in st.session_state.selected_services_list if s in service_names]
+        if not st.session_state.selected_services_list and service_names:
+            st.session_state.selected_services_list = [service_names[0]]
 
-    def sync_multi_services():
-        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in st.session_state.pos_selected_services)
+    def handle_service_selection_change():
+        chosen = st.session_state.get("pos_multi_services", [])
+        st.session_state.selected_services_list = chosen
+        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in chosen)
 
     if "service_amount_input" not in st.session_state:
-        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in st.session_state.pos_selected_services)
+        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in st.session_state.selected_services_list)
 
     with col_entry:
         st.subheader(T["quick_pos"])
-        c_staff, c_cust = st.columns(2)
-        with c_staff:
-            worker_selected = st.selectbox(T["staff_stylist"], staff_options, index=default_staff_idx, key="pos_worker")
-        with c_cust:
-            customer = st.text_input(T["cust_name_mobile"], placeholder="e.g. Priya Sharma", key="pos_customer")
 
+        # Stylist Selection: Locked for workers, selectable for owners
+        if role == "worker":
+            st.text_input("Stylist / Employee (Auto-locked to your account)", value=user["name"], disabled=True)
+            worker_selected = user["name"]
+        else:
+            staff_res = supabase.table("users").select("name").eq("store_id", store_id).execute().data
+            staff_options = [s["name"] for s in staff_res] if staff_res else [user["name"]]
+            default_staff_idx = staff_options.index(user["name"]) if user["name"] in staff_options else 0
+            worker_selected = st.selectbox(T["staff_stylist"], staff_options, index=default_staff_idx)
+
+        # Customer name input
+        if "customer_input_val" not in st.session_state:
+            st.session_state.customer_input_val = ""
+        customer = st.text_input(T["cust_name_mobile"], value=st.session_state.customer_input_val, placeholder="e.g. Priya Sharma", key="cust_name_field")
+
+        # Multi-service selector
         selected_services = st.multiselect(
             T["services_rendered"],
             options=service_names,
-            default=st.session_state.pos_selected_services,
-            key="pos_selected_services",
-            on_change=sync_multi_services
+            default=st.session_state.selected_services_list,
+            key="pos_multi_services",
+            on_change=handle_service_selection_change
         )
 
         c_amt, c_pay = st.columns(2)
         with c_amt:
             amount = st.number_input(T["total_bill"], min_value=0.0, step=50.0, key="service_amount_input")
         with c_pay:
-            payment = st.selectbox(T["payment_mode"], ["UPI", "Cash", "Card"], key="pos_payment_mode")
+            payment = st.selectbox(T["payment_mode"], ["UPI", "Cash", "Card"], key="pos_payment_select")
 
         if st.button(T["btn_save_sale"], use_container_width=True):
             if not customer.strip() or not selected_services or amount <= 0:
-                st.error("Please fill in valid customer details, select services, and ensure amount is greater than ₹0.")
+                st.error("Please enter a valid customer name and ensure services are selected with bill > ₹0.")
             else:
                 supabase.table("transactions").insert({
                     "txn_id": f"TXN-{uuid.uuid4().hex[:6].upper()}",
@@ -1501,11 +1531,9 @@ elif st.session_state.current_page == "home":
                     "payment_mode": payment
                 }).execute()
 
-                # Clean fields immediately after recording
-                st.session_state.pos_customer = ""
-                st.session_state.pos_selected_services = [service_names[0]] if service_names else []
+                st.session_state.customer_input_val = ""
+                st.session_state.selected_services_list = [service_names[0]] if service_names else []
                 st.session_state.service_amount_input = services_dict.get(service_names[0], 0.0) if service_names else 0.0
-                
                 st.toast("Sale logged successfully!")
                 st.rerun()
 
@@ -1513,6 +1541,7 @@ elif st.session_state.current_page == "home":
         st.subheader(T["today_entries"])
         if not txns_df.empty:
             today_view = txns_df[txns_df["date"] == today_str]
+            # Workers only see their own transactions
             if role == "worker":
                 today_view = today_view[today_view["worker_name"] == user["name"]]
             if not today_view.empty:
@@ -1534,8 +1563,14 @@ elif st.session_state.current_page == "pnl" and role == "client":
     tx_df = pd.DataFrame(txns)
     exp_df = pd.DataFrame(exps)
 
-    total_income = tx_df["amount"].astype(float).sum() if not tx_df.empty else 0.0
-    total_expense = exp_df["amount"].astype(float).sum() if not exp_df.empty else 0.0
+    # Convert numeric columns safely upfront to avoid AttributeError
+    if not tx_df.empty:
+        tx_df["amount"] = pd.to_numeric(tx_df["amount"], errors="coerce").fillna(0.0)
+    if not exp_df.empty:
+        exp_df["amount"] = pd.to_numeric(exp_df["amount"], errors="coerce").fillna(0.0)
+
+    total_income = tx_df["amount"].sum() if not tx_df.empty else 0.0
+    total_expense = exp_df["amount"].sum() if not exp_df.empty else 0.0
     net_profit = total_income - total_expense
 
     p1, p2, p3 = st.columns(3)
@@ -1548,13 +1583,13 @@ elif st.session_state.current_page == "pnl" and role == "client":
     with c_left:
         st.subheader(T["rev_by_mode"])
         if not tx_df.empty:
-            pay_dist = tx_df.groupby("payment_mode")["amount"].astype(float).sum().reset_index()
+            pay_dist = tx_df.groupby("payment_mode", as_index=False)["amount"].sum()
             pay_dist.columns = [T["payment_mode"], T["total_bill"]]
             st.dataframe(pay_dist, use_container_width=True, hide_index=True)
     with c_right:
         st.subheader(T["exp_by_cat"])
         if not exp_df.empty:
-            cat_dist = exp_df.groupby("category")["amount"].astype(float).sum().reset_index()
+            cat_dist = exp_df.groupby("category", as_index=False)["amount"].sum()
             cat_dist.columns = [T["exp_cat"], T["exp_amount"]]
             st.dataframe(cat_dist, use_container_width=True, hide_index=True)
 
@@ -1572,7 +1607,6 @@ elif st.session_state.current_page == "expenses" and role in ["admin", "client"]
             desc = st.text_input(T["exp_desc"], placeholder="e.g. L'Oreal shampoo stock, Tea expenses")
             exp_amount = st.number_input(T["exp_amount"], min_value=0.0, step=100.0)
             exp_date = st.date_input(T["exp_date"], value=date.today())
-
             submit_exp = st.form_submit_button(T["btn_save_exp"], use_container_width=True)
 
         if submit_exp:
@@ -1681,26 +1715,29 @@ elif st.session_state.current_page == "lookbook":
             render_womens_catalog()
 
 # =========================================================
-# STORE CONFIG: SERVICES & EMPLOYEES (WITH CONFIRM MODALS & AUTO-CLEAN)
+# STORE CONFIG: SERVICES (EDIT + DELETE) & EMPLOYEES
 # =========================================================
 elif st.session_state.current_page == "settings" and role in ["admin", "client"]:
     st.markdown(f"<h2>⚙️ {T['store_config_title']}</h2>", unsafe_allow_html=True)
     tab_serv, tab_emp = st.tabs([f"💅 {T['tab_services']}", f"👥 {T['tab_employees']}"])
 
-    # 1. SERVICES WITH AUTO-CLEAN FORM
+    # 1. SERVICES WITH EDIT AND DELETE
     with tab_serv:
         st.subheader(T["tab_services"])
         services_db = supabase.table("services").select("*").eq("store_id", store_id).order("service_name").execute().data
         
         if services_db:
             for srv in services_db:
-                c_s1, c_s2, c_s3 = st.columns([4, 2, 1.5])
+                c_s1, c_s2, c_s3, c_s4 = st.columns([3.5, 2, 1.2, 1.2])
                 with c_s1:
                     st.write(f"✂️ **{srv.get('service_name')}**")
                 with c_s2:
                     st.write(f"₹ {float(srv.get('price', 0)):,.2f}")
                 with c_s3:
-                    if st.button("🗑️ Delete", key=f"del_srv_{srv.get('service_id')}"):
+                    if st.button("✏️ Edit", key=f"edit_srv_{srv.get('service_id')}", use_container_width=True):
+                        edit_service_modal(srv)
+                with c_s4:
+                    if st.button("🗑️ Delete", key=f"del_srv_{srv.get('service_id')}", use_container_width=True):
                         supabase.table("services").delete().eq("service_id", srv["service_id"]).execute()
                         st.toast(f"Deleted {srv['service_name']}!")
                         st.rerun()
@@ -1732,7 +1769,7 @@ elif st.session_state.current_page == "settings" and role in ["admin", "client"]
             else:
                 st.error("Please enter a valid service name and rate.")
 
-    # 2. EMPLOYEES WITH CONFIRMATION POPUP & AUTO-CLEAN FORM
+    # 2. EMPLOYEES CONFIGURATION
     with tab_emp:
         st.subheader(T["tab_employees"])
         staff_records = supabase.table("users").select("user_id, username, name, role, status").eq("store_id", store_id).execute().data
