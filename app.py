@@ -99,30 +99,12 @@ st.markdown("""
         margin-bottom: 18px;
     }
 
-    .haircut-card {
+    .receipt-box {
         background: #FFFFFF;
-        border: 1px solid #E2E8F0;
+        border: 2px dashed #CBD5E1;
         border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-        margin-bottom: 20px;
-    }
-    .haircut-card img {
-        width: 100%;
-        height: 250px;
-        object-fit: cover;
-    }
-    .haircut-info {
-        padding: 16px;
-    }
-
-    .performer-card {
-        background: linear-gradient(135deg, #FFFFFF 0%, #FFFDF7 100%);
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 16px 20px;
-        margin-bottom: 12px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+        padding: 18px;
+        margin-bottom: 15px;
     }
 
     .brand-footer {
@@ -175,10 +157,9 @@ TRANSLATIONS = {
         "btn_request_access": "✨ Request New Salon Access / Get Started",
         "log_off": "Log Off",
         "nav_pos": "Billing POS",
-        "nav_pnl": "Total PnL (Earnings & Exp)",
+        "nav_pnl": "Month PnL (Earnings vs Exp)",
         "nav_expenses": "Expenses",
         "nav_config": "Store Config",
-        "nav_lookbook": "Style Lookbook",
         "nav_admin_txns": "Live Transactions",
         "nav_admin_salons": "Manage Salons & Parlours",
         "metric_today_cust": "Today's Customers",
@@ -195,15 +176,15 @@ TRANSLATIONS = {
         "services_rendered": "Services Rendered (Multi-Service)",
         "total_bill": "Total Bill (₹)",
         "payment_mode": "Payment Mode",
-        "btn_save_sale": "Record Sale",
+        "btn_save_sale": "🧾 Generate Bill & Confirm",
         "today_entries": "Today's Entries",
         "no_bills_today": "No bills entered today yet.",
-        "pnl_title": "All-in-One: Total Earnings & Expenses",
-        "total_rev": "Total Revenue (Earnings)",
-        "total_exp": "Total Expenses Incurred",
-        "net_profit": "Net In-Pocket Profit",
-        "rev_by_mode": "Revenue by Payment Mode",
-        "exp_by_cat": "Expenses by Category",
+        "pnl_title": "Current Month: Total Earnings vs Expenses",
+        "total_rev": "Month Revenue (Earnings)",
+        "total_exp": "Month Expenses Incurred",
+        "net_profit": "Month Net Profit",
+        "rev_by_mode": "Month Revenue by Payment Mode",
+        "exp_by_cat": "Month Expenses by Category",
         "expenses_title": "Store Expenses & Purchases",
         "log_expense": "Log Expense",
         "exp_cat": "Category",
@@ -233,9 +214,6 @@ TRANSLATIONS = {
         "btn_delete_salon": "Delete Salon",
         "btn_save_changes": "Save Updated Information",
         "btn_cancel": "Cancel / Back",
-        "lookbook_title": "Trending Hairstyles & Lookbook Catalog",
-        "tab_men": "Men's Modern Haircuts & Grooming",
-        "tab_women": "Women's Beauty & Hair Makeover",
         "celebration_modal_title": "Top 3 Star Performers Recognition",
         "celebration_sub": "Recognizing dedication, customer love, and outstanding sales performance.",
         "champ_1st": "1st Place Champion",
@@ -256,10 +234,9 @@ TRANSLATIONS = {
         "btn_request_access": "✨ नए सैलून एक्सेस हेतु आवेदन करें",
         "log_off": "लॉग आउट करें",
         "nav_pos": "बिलिंग / नया बिल (POS)",
-        "nav_pnl": "कुल लाभ व हानि (PnL)",
+        "nav_pnl": "इस महीने का लाभ व हानि (PnL)",
         "nav_expenses": "दुकान के खर्चे",
         "nav_config": "दुकान सेटिंग",
-        "nav_lookbook": "स्टाइल लुकबुक",
         "nav_admin_txns": "लाइव बिलिंग लेनदेन",
         "nav_admin_salons": "सैलून और पार्लर प्रबंधन",
         "metric_today_cust": "आज के कुल ग्राहक",
@@ -276,15 +253,15 @@ TRANSLATIONS = {
         "services_rendered": "दी गई सेवाएं (Multi-Service चुनें)",
         "total_bill": "कुल बिल राशि (₹)",
         "payment_mode": "भुगतान माध्यम (Payment Mode)",
-        "btn_save_sale": "💾 बिल सेव करें",
+        "btn_save_sale": "🧾 बिल बनाएं व पुष्टि करें",
         "today_entries": "आज के बिल की सूची",
         "no_bills_today": "आज अभी तक कोई बिल दर्ज नहीं हुआ है।",
-        "pnl_title": "कुल कमाई और खर्चे (लाभ व हानि विवरण)",
-        "total_rev": "कुल कमाई (Revenue)",
-        "total_exp": "कुल खर्चे (Expenses)",
-        "net_profit": "शुद्ध बचत / लाभ (Net Profit)",
-        "rev_by_mode": "भुगतान माध्यम अनुसार कमाई",
-        "exp_by_cat": "श्रेणी अनुसार खर्चे",
+        "pnl_title": "चालू माह: कुल कमाई बनाम खर्चे (लाभ व हानि)",
+        "total_rev": "माह की कुल कमाई",
+        "total_exp": "माह के कुल खर्चे",
+        "net_profit": "माह की शुद्ध बचत / लाभ",
+        "rev_by_mode": "माह की भुगतान माध्यम अनुसार कमाई",
+        "exp_by_cat": "माह के श्रेणी अनुसार खर्चे",
         "expenses_title": "दुकान के खर्चे और खरीदारी",
         "log_expense": "नया खर्चा दर्ज करें",
         "exp_cat": "खर्चे की श्रेणी",
@@ -314,9 +291,6 @@ TRANSLATIONS = {
         "btn_delete_salon": "सैलून हटाएं (Delete)",
         "btn_save_changes": "बदलाव सेव करें",
         "btn_cancel": "रद्द करें / वापस",
-        "lookbook_title": "ट्रेंडिंग हेयरस्टाइल और लुकबुक",
-        "tab_men": "पुरुषों के हेयरकट और ग्रूमिंग",
-        "tab_women": "महिलाओं की हेयर व ब्यूटी स्टाइल",
         "celebration_modal_title": "सर्वश्रेष्ठ 3 कर्मचारियों का अभिनंदन",
         "celebration_sub": "मेहनत, बेहतरीन ग्राहक सेवा और शानदार बिक्री का सम्मान।",
         "champ_1st": "🥇 प्रथम स्थान विजेता",
@@ -337,10 +311,9 @@ TRANSLATIONS = {
         "btn_request_access": "✨ नवीन सलून ॲक्सेससाठी अर्ज करा",
         "log_off": "लॉग आउट करा",
         "nav_pos": "बिलिंग / नवीन बिल (POS)",
-        "nav_pnl": "एकूण नफा आणि तोटा (PnL)",
+        "nav_pnl": "चालू महिन्याचा नफा आणि तोटा (PnL)",
         "nav_expenses": "दुकानाचे खर्च",
         "nav_config": "दुकान सेटिंग्ज",
-        "nav_lookbook": "स्टाईल लुकबुक",
         "nav_admin_txns": "थेट व्यवहार प्रवाह",
         "nav_admin_salons": "सलून व पार्लर व्यवस्थापन",
         "metric_today_cust": "आजचे एकूण ग्राहक",
@@ -357,15 +330,15 @@ TRANSLATIONS = {
         "services_rendered": "दिलेल्या सेवा (एकाधिक सेवा निवडा)",
         "total_bill": "एकूण बिल रक्कम (₹)",
         "payment_mode": "पेमेंट मोड (Payment Mode)",
-        "btn_save_sale": "💾 बिल जतन करा",
+        "btn_save_sale": "🧾 बिल तयार करा व पुष्टी करा",
         "today_entries": "आजच्या बिलांची यादी",
         "no_bills_today": "आज अजून एकही बिल नोंदवलेले नाही.",
-        "pnl_title": "एकूण कमाई आणि खर्च (नफा-तोटा विवरण)",
-        "total_rev": "एकूण उत्पन्न (Revenue)",
-        "total_exp": "एकूण झालेले खर्च (Expenses)",
-        "net_profit": "निव्वळ शिल्लक नफा (Net Profit)",
-        "rev_by_mode": "पेमेंट पद्धतीनुसार कमाई",
-        "exp_by_cat": "प्रकारानुसार झालेले खर्च",
+        "pnl_title": "चालू महिना: एकूण कमाई आणि खर्च (नफा-तोटा)",
+        "total_rev": "महिन्याची एकूण कमाई",
+        "total_exp": "महिन्याचे एकूण खर्च",
+        "net_profit": "महिन्याचा निव्वळ शिल्लक नफा",
+        "rev_by_mode": "पेमेंट पद्धतीनुसार महिन्याची कमाई",
+        "exp_by_cat": "प्रकारानुसार महिन्याचे खर्च",
         "expenses_title": "दुकानाचे खर्च व खरेदी",
         "log_expense": "नवीन खर्च नोंदवा",
         "exp_cat": "खर्चाचा प्रकार",
@@ -395,9 +368,6 @@ TRANSLATIONS = {
         "btn_delete_salon": "सलून हटवा (Delete)",
         "btn_save_changes": "बदल जतन करा",
         "btn_cancel": "रद्द करा / मागे जा",
-        "lookbook_title": "ट्रेंडिंग हेअरकट आणि ब्युटी कॅटलॉग",
-        "tab_men": "पुरुषांचे हेअरकट्स व ग्रूमिंग",
-        "tab_women": "महिलांच्या हेअर आणि ब्युटी स्टाईल्स",
         "celebration_modal_title": "सर्वोत्कृष्ट ३ कर्मचाऱ्यांचा गौरव",
         "celebration_sub": "कष्ट, ग्राहकांचे समाधान आणि अप्रतिम विक्री कामगिरीचा गौरव.",
         "champ_1st": "🥇 प्रथम क्रमांक विजेता",
@@ -425,8 +395,8 @@ if "show_request_form" not in st.session_state:
     st.session_state.show_request_form = False
 if "req_view_filter" not in st.session_state:
     st.session_state.req_view_filter = "pending"
-if "editing_service_id" not in st.session_state:
-    st.session_state.editing_service_id = None
+if "pos_form_run_count" not in st.session_state:
+    st.session_state.pos_form_run_count = 0
 
 T = TRANSLATIONS[st.session_state.lang]
 
@@ -444,6 +414,65 @@ def render_language_bar():
             st.rerun()
 
 # ----------------- MODAL DIALOGS -----------------
+@st.dialog("🧾 Salon Bill Receipt & Confirmation")
+def confirm_receipt_modal(bill_data):
+    st.markdown("""
+    <div style="text-align: center; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px; margin-bottom: 12px;">
+        <h3 style="margin: 0; color: #B45309;">✨ LUXE SALON RECEIPT ✨</h3>
+        <p style="margin: 2px 0 0 0; color: #64748B; font-size: 0.85rem;">Official Customer Service Invoice</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write(f"**Customer:** {bill_data['customer_name']}")
+        st.write(f"**Stylist / Staff:** {bill_data['worker_name']}")
+    with c2:
+        st.write(f"**Date:** {datetime.now().strftime('%d %b %Y, %I:%M %p')}")
+        st.write(f"**Payment:** {bill_data['payment_mode']}")
+
+    st.write("---")
+    st.markdown("##### ✂️ Services Rendered")
+    
+    # Table of services and amounts
+    service_items = bill_data["services_breakdown"]
+    df_receipt = pd.DataFrame(service_items)
+    df_receipt.columns = ["Service Item", "Rate (₹)"]
+    st.dataframe(df_receipt, use_container_width=True, hide_index=True)
+
+    st.markdown(f"""
+    <div style="text-align: right; background: #F8FAFC; padding: 12px 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin-top: 8px;">
+        <span style="font-size: 1.1rem; color: #64748B;">Total Amount Payable:</span> 
+        <span style="font-size: 1.5rem; font-weight: 800; color: #0F172A; margin-left: 10px;">₹ {bill_data['amount']:,.2f}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.write("---")
+    c_save, c_cancel = st.columns(2)
+    with c_save:
+        if st.button("✅ Confirm & Save Sale", type="primary", use_container_width=True):
+            try:
+                supabase.table("transactions").insert({
+                    "txn_id": f"TXN-{uuid.uuid4().hex[:6].upper()}",
+                    "store_id": bill_data["store_id"],
+                    "logged_by_user": bill_data["logged_by_user"],
+                    "worker_name": bill_data["worker_name"],
+                    "customer_name": bill_data["customer_name"],
+                    "service": bill_data["service_str"],
+                    "amount": bill_data["amount"],
+                    "payment_mode": bill_data["payment_mode"]
+                }).execute()
+
+                st.session_state.pos_form_run_count += 1
+                st.toast("✅ Transaction confirmed and saved to database!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to record transaction: {e}")
+
+    with c_cancel:
+        if st.button("❌ Edit / Go Back", use_container_width=True):
+            st.rerun()
+
 @st.dialog("✏️ Edit Service & Pricing")
 def edit_service_modal(srv):
     st.markdown(f"### Update Service: **{srv['service_name']}**")
@@ -765,7 +794,7 @@ def render_request_access_page():
                 </div>
                 <div>
                     <div>✅ Employee Sales & Top 3 Stars</div>
-                    <div>✅ Expense Tracking & All-in-One PnL</div>
+                    <div>✅ Expense Tracking & Monthly PnL</div>
                     <div>✅ Multilingual (English / हिंदी / मराठी)</div>
                 </div>
             </div>
@@ -989,7 +1018,7 @@ if role == "admin":
             perform_logout()
 
 else:  # Salon Owner / Worker
-    nav1, nav2, nav3, nav4, nav5 = st.columns([2.5, 2.2, 2, 2, 1.5])
+    nav1, nav2, nav3, nav4, nav5 = st.columns([3, 2.5, 2, 2, 1.5])
     with nav1:
         if st.button(f"🏠 {T['nav_pos']}", use_container_width=True):
             st.session_state.current_page = "home"
@@ -1000,14 +1029,14 @@ else:  # Salon Owner / Worker
                 st.session_state.current_page = "pnl"
                 st.rerun()
         else:
-            if st.button(f"💇 {T['nav_lookbook']}", use_container_width=True):
-                st.session_state.current_page = "lookbook"
-                st.rerun()
+            st.empty()
     with nav3:
         if role == "client":
             if st.button(f"💸 {T['nav_expenses']}", use_container_width=True):
                 st.session_state.current_page = "expenses"
                 st.rerun()
+        else:
+            st.empty()
     with nav4:
         if role == "client":
             if st.button(f"⚙️ {T['nav_config']}", use_container_width=True):
@@ -1049,7 +1078,7 @@ if role == "admin" and st.session_state.current_page == "admin_home":
 
     today_str = date.today().isoformat()
     if not tx_df.empty:
-        tx_df["amount"] = pd.to_numeric(tx_df["amount"], errors="coerce")
+        tx_df["amount"] = pd.to_numeric(tx_df["amount"], errors="coerce").fillna(0.0)
         tx_df["date"] = pd.to_datetime(tx_df["timestamp"]).dt.strftime("%Y-%m-%d")
 
         t_today = tx_df[tx_df["date"] == today_str]["amount"].sum()
@@ -1387,6 +1416,7 @@ elif st.session_state.current_page == "home":
 
         m1, m2, m3 = st.columns(3)
         m1.metric(T["metric_my_today_cust"], my_today_cust)
+        m1.caption("Only your attended clients")
         m2.metric(T["metric_my_today_sales"], f"₹ {my_today_sales:,.2f}")
         m3.metric("My Current Month Sales", f"₹ {my_month_sales:,.2f}")
 
@@ -1458,90 +1488,84 @@ elif st.session_state.current_page == "home":
                 emp_summary.columns = [T["staff_stylist"], T["metric_today_cust"], T["metric_today_sales"]]
                 st.dataframe(emp_summary, use_container_width=True, hide_index=True)
 
-    # ---------------- QUICK BILLING POS (FAILSAFE & SANITIZED) ----------------
+    # ---------------- QUICK BILLING POS (STARTS EMPTY + AUTO-SUM + RECEIPT CONFIRMATION) ----------------
     st.write("---")
     col_entry, col_view = st.columns([1.1, 1.4])
 
-    # Fetch store services
     services_res = supabase.table("services").select("service_id, service_name, price").eq("store_id", store_id).order("service_name").execute().data
-    services_dict = {item["service_name"]: float(item["price"]) for item in services_res} if services_res else {"Standard Cut": 150.0}
+    services_dict = {item["service_name"]: float(item["price"]) for item in services_res} if services_res else {"Standard Service": 150.0}
     service_names = list(services_dict.keys())
 
-    # Prevent StreamlitDefaultNotInOptionsError: Ensure session state matches current options
-    if "selected_services_list" not in st.session_state:
-        st.session_state.selected_services_list = [service_names[0]] if service_names else []
-    else:
-        st.session_state.selected_services_list = [s for s in st.session_state.selected_services_list if s in service_names]
-        if not st.session_state.selected_services_list and service_names:
-            st.session_state.selected_services_list = [service_names[0]]
-
-    def handle_service_selection_change():
-        chosen = st.session_state.get("pos_multi_services", [])
-        st.session_state.selected_services_list = chosen
-        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in chosen)
-
-    if "service_amount_input" not in st.session_state:
-        st.session_state.service_amount_input = sum(services_dict.get(s, 0.0) for s in st.session_state.selected_services_list)
+    run_key = st.session_state.pos_form_run_count
 
     with col_entry:
         st.subheader(T["quick_pos"])
 
-        # Stylist Selection: Locked for workers, selectable for owners
+        # 1. Stylist: locked for staff, selectable for owner
         if role == "worker":
-            st.text_input("Stylist / Employee (Auto-locked to your account)", value=user["name"], disabled=True)
+            st.text_input("Stylist / Staff (Locked to your account)", value=user["name"], disabled=True, key=f"pos_worker_locked_{run_key}")
             worker_selected = user["name"]
         else:
             staff_res = supabase.table("users").select("name").eq("store_id", store_id).execute().data
             staff_options = [s["name"] for s in staff_res] if staff_res else [user["name"]]
             default_staff_idx = staff_options.index(user["name"]) if user["name"] in staff_options else 0
-            worker_selected = st.selectbox(T["staff_stylist"], staff_options, index=default_staff_idx)
+            worker_selected = st.selectbox(T["staff_stylist"], staff_options, index=default_staff_idx, key=f"pos_worker_sel_{run_key}")
 
-        # Customer name input
-        if "customer_input_val" not in st.session_state:
-            st.session_state.customer_input_val = ""
-        customer = st.text_input(T["cust_name_mobile"], value=st.session_state.customer_input_val, placeholder="e.g. Priya Sharma", key="cust_name_field")
+        # 2. Customer Name
+        customer = st.text_input(T["cust_name_mobile"], placeholder="e.g. Priya Sharma", key=f"pos_cust_name_{run_key}")
 
-        # Multi-service selector
+        # 3. Services Rendered: ALWAYS STARTS EMPTY
         selected_services = st.multiselect(
             T["services_rendered"],
             options=service_names,
-            default=st.session_state.selected_services_list,
-            key="pos_multi_services",
-            on_change=handle_service_selection_change
+            default=[],
+            placeholder="Select services provided...",
+            key=f"pos_srv_select_{run_key}"
         )
+
+        # 4. Computed Subtotal
+        computed_subtotal = sum(services_dict.get(s, 0.0) for s in selected_services)
+
+        # If services are chosen, show itemized breakdown
+        if selected_services:
+            st.caption("Selected Services Breakdown:")
+            for s in selected_services:
+                st.markdown(f"- **{s}**: ₹ {services_dict.get(s, 0.0):,.2f}")
 
         c_amt, c_pay = st.columns(2)
         with c_amt:
-            amount = st.number_input(T["total_bill"], min_value=0.0, step=50.0, key="service_amount_input")
+            # Dynamically auto-picked sum from selected services, but editable for discounts
+            final_bill_amount = st.number_input(
+                T["total_bill"],
+                min_value=0.0,
+                value=float(computed_subtotal),
+                step=50.0,
+                key=f"pos_amt_inp_{run_key}_{len(selected_services)}_{int(computed_subtotal)}"
+            )
         with c_pay:
-            payment = st.selectbox(T["payment_mode"], ["UPI", "Cash", "Card"], key="pos_payment_select")
+            payment = st.selectbox(T["payment_mode"], ["UPI", "Cash", "Card"], key=f"pos_pay_mode_{run_key}")
 
+        # 5. Bill Confirmation Trigger
         if st.button(T["btn_save_sale"], use_container_width=True):
-            if not customer.strip() or not selected_services or amount <= 0:
-                st.error("Please enter a valid customer name and ensure services are selected with bill > ₹0.")
+            if not customer.strip() or not selected_services or final_bill_amount <= 0:
+                st.error("Please enter customer name and choose at least one service with bill > ₹0.")
             else:
-                supabase.table("transactions").insert({
-                    "txn_id": f"TXN-{uuid.uuid4().hex[:6].upper()}",
+                receipt_payload = {
                     "store_id": store_id,
                     "logged_by_user": user["username"],
                     "worker_name": worker_selected,
                     "customer_name": customer.strip(),
-                    "service": ", ".join(selected_services),
-                    "amount": amount,
+                    "services_breakdown": [{"Service": s, "Rate": services_dict.get(s, 0.0)} for s in selected_services],
+                    "service_str": ", ".join(selected_services),
+                    "amount": final_bill_amount,
                     "payment_mode": payment
-                }).execute()
-
-                st.session_state.customer_input_val = ""
-                st.session_state.selected_services_list = [service_names[0]] if service_names else []
-                st.session_state.service_amount_input = services_dict.get(service_names[0], 0.0) if service_names else 0.0
-                st.toast("Sale logged successfully!")
-                st.rerun()
+                }
+                confirm_receipt_modal(receipt_payload)
 
     with col_view:
         st.subheader(T["today_entries"])
         if not txns_df.empty:
             today_view = txns_df[txns_df["date"] == today_str]
-            # Workers only see their own transactions
             if role == "worker":
                 today_view = today_view[today_view["worker_name"] == user["name"]]
             if not today_view.empty:
@@ -1552,25 +1576,38 @@ elif st.session_state.current_page == "home":
             st.info(T["no_bills_today"])
 
 # =========================================================
-# OWNER: ALL-IN-ONE PROFIT & LOSS (EARNINGS VS EXPENSES)
+# OWNER: CURRENT MONTH ONLY PROFIT & LOSS (EARNINGS VS EXPENSES)
 # =========================================================
 elif st.session_state.current_page == "pnl" and role == "client":
-    st.markdown(f"<h2>📊 {T['pnl_title']}</h2>", unsafe_allow_html=True)
-    
+    curr_month_name = date.today().strftime("%B %Y")
+    first_of_month = date.today().replace(day=1).isoformat()
+
+    st.markdown(f"<h2>📊 {T['pnl_title']} ({curr_month_name})</h2>", unsafe_allow_html=True)
+    st.caption(f"Financial summary calculated strictly for {curr_month_name} (from {first_of_month} to today).")
+
     txns = supabase.table("transactions").select("*").eq("store_id", store_id).execute().data
     exps = supabase.table("expenses").select("*").eq("store_id", store_id).execute().data
     
     tx_df = pd.DataFrame(txns)
     exp_df = pd.DataFrame(exps)
 
-    # Convert numeric columns safely upfront to avoid AttributeError
+    # 1. Filter Transactions to Current Month Only
     if not tx_df.empty:
         tx_df["amount"] = pd.to_numeric(tx_df["amount"], errors="coerce").fillna(0.0)
+        tx_df["date"] = pd.to_datetime(tx_df["timestamp"]).dt.strftime("%Y-%m-%d")
+        month_tx_df = tx_df[tx_df["date"] >= first_of_month]
+    else:
+        month_tx_df = pd.DataFrame()
+
+    # 2. Filter Expenses to Current Month Only
     if not exp_df.empty:
         exp_df["amount"] = pd.to_numeric(exp_df["amount"], errors="coerce").fillna(0.0)
+        month_exp_df = exp_df[exp_df["expense_date"] >= first_of_month]
+    else:
+        month_exp_df = pd.DataFrame()
 
-    total_income = tx_df["amount"].sum() if not tx_df.empty else 0.0
-    total_expense = exp_df["amount"].sum() if not exp_df.empty else 0.0
+    total_income = month_tx_df["amount"].sum() if not month_tx_df.empty else 0.0
+    total_expense = month_exp_df["amount"].sum() if not month_exp_df.empty else 0.0
     net_profit = total_income - total_expense
 
     p1, p2, p3 = st.columns(3)
@@ -1582,16 +1619,21 @@ elif st.session_state.current_page == "pnl" and role == "client":
     c_left, c_right = st.columns(2)
     with c_left:
         st.subheader(T["rev_by_mode"])
-        if not tx_df.empty:
-            pay_dist = tx_df.groupby("payment_mode", as_index=False)["amount"].sum()
+        if not month_tx_df.empty:
+            pay_dist = month_tx_df.groupby("payment_mode", as_index=False)["amount"].sum()
             pay_dist.columns = [T["payment_mode"], T["total_bill"]]
             st.dataframe(pay_dist, use_container_width=True, hide_index=True)
+        else:
+            st.info("No revenue recorded in this current month yet.")
+
     with c_right:
         st.subheader(T["exp_by_cat"])
-        if not exp_df.empty:
-            cat_dist = exp_df.groupby("category", as_index=False)["amount"].sum()
+        if not month_exp_df.empty:
+            cat_dist = month_exp_df.groupby("category", as_index=False)["amount"].sum()
             cat_dist.columns = [T["exp_cat"], T["exp_amount"]]
             st.dataframe(cat_dist, use_container_width=True, hide_index=True)
+        else:
+            st.info("No expenses recorded in this current month yet.")
 
 # =========================================================
 # OWNER / ADMIN: EXPENSES WITH AUTO-CLEAN FORM & DELETION
@@ -1644,75 +1686,6 @@ elif st.session_state.current_page == "expenses" and role in ["admin", "client"]
                 st.write("")
         else:
             st.info("No expenses recorded yet.")
-
-# =========================================================
-# CATEGORY-FILTERED LOOKBOOK & STYLES
-# =========================================================
-elif st.session_state.current_page == "lookbook":
-    st.markdown(f"<h2>💇 {T['lookbook_title']}</h2>", unsafe_allow_html=True)
-
-    def render_mens_catalog():
-        m_col1, m_col2 = st.columns(2)
-        with m_col1:
-            st.markdown("""
-            <div class="haircut-card">
-                <img src="https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=700&q=80">
-                <div class="haircut-info">
-                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Modern Urban</span>
-                    <h4>Textured Crop & High Fade</h4>
-                    <p style="color:#64748B;">Low maintenance, athletic and sharp look with clean sides.</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        with m_col2:
-            st.markdown("""
-            <div class="haircut-card">
-                <img src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=700&q=80">
-                <div class="haircut-info">
-                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Classic Executive</span>
-                    <h4>Executive Pompadour + Taper</h4>
-                    <p style="color:#64748B;">High volume brushed top paired with a neat grooming beard.</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    def render_womens_catalog():
-        w_col1, w_col2 = st.columns(2)
-        with w_col1:
-            st.markdown("""
-            <div class="haircut-card">
-                <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=700&q=80">
-                <div class="haircut-info">
-                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Luxury Hair Spa</span>
-                    <h4>Balayage & Layered Blowout</h4>
-                    <p style="color:#64748B;">Lustrous depth and soft feminine feather movement.</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        with w_col2:
-            st.markdown("""
-            <div class="haircut-card">
-                <img src="https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=700&q=80">
-                <div class="haircut-info">
-                    <span style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:#D4A338;">Bridal & Party</span>
-                    <h4>Bridal Makeover & Glow Facial</h4>
-                    <p style="color:#64748B;">Complete party makeover, glow rejuvenation and styling.</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    if "Women" in salon_cat:
-        st.info(f"Showing beauty catalogue for: **{salon_cat}**")
-        render_womens_catalog()
-    elif "Men" in salon_cat:
-        st.info(f"Showing styles catalogue for: **{salon_cat}**")
-        render_mens_catalog()
-    else:
-        tab_men, tab_women = st.tabs([T["tab_men"], T["tab_women"]])
-        with tab_men:
-            render_mens_catalog()
-        with tab_women:
-            render_womens_catalog()
 
 # =========================================================
 # STORE CONFIG: SERVICES (EDIT + DELETE) & EMPLOYEES
